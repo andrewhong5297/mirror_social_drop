@@ -15,6 +15,8 @@ still left to do:
 - [x]  check that those without Twitter handles don't get the `hasVoted` bool rewards
 - [x]  check that those who aren't part of the extra rewards are still part of the airdrop (i.e. those I removed who voted for themselves, or haven't voted at all)
 - [ ]  try to implement PageRank of splits? could be an extra weighted multiplier on creator rewards, rather than the number of splits created. Could take percentages into account too.
+- [x]  expand on writing of article intro in notion
+- [x]  expand on formula derivation thought process, tying it to changes in the intro
 
 webscraping tasks
 - [ ]  bunch of missing crowdfunds, editions, splits - so contribution data is not 100% accurate. will require possibly scraping etherscan 
