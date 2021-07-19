@@ -13,4 +13,5 @@ still left to do:
 - reconcile why some splits aren't appearing in dune (https://duneanalytics.com/queries/84423), only 21 splits show up, and 7 in the old splits. Missing at least 20 somewhere
 - editions don't have a creator, instead event logs just show the funds receipient who I have labelled as the creator. This may be undesireable 
 - crowdfunds don't have caps in event logs, this will have to be scraped manually later (not for airdrop but for our_network)
+- clean twitter mentions data (currently taking the mentions from their most recent 2000 tweets, may need to go for 5000). 
 - some visualizations on how voting influence has shifted, maybe make editions NFT from this
