@@ -16,7 +16,7 @@ start recon for calcuating rewards
 consolidated_df = pd.read_csv(r'main_datasets\mirror_graph_score_ready.csv', index_col=0)
 
 """calculate created count"""
-##dune is showing 11 crowdfunds, here we see 27. we will need to add tiercrowdfund factory
+##dune is showing 17 crowdfunds, here we see 27. 
 cf = pd.read_csv(r'main_datasets\mirror_supplied\Crowdfunds.csv')
 cf["creator"] = cf["creator"].apply(lambda x: x.lower())
 created_cf = cf.pivot_table(index="creator",values="contract_address",aggfunc=lambda x: len(x.unique()))
@@ -88,8 +88,9 @@ consolidated_df["unique_contributed"] = min_max_scaler.fit_transform(consolidate
 import numpy as np
 def calculate_rewards(df,a,b,c,d):
     #this function is explained in the airdrop proposal
+    #changed uniqueness to betweenness, it helps cap it a little but doesn't change distribution.
     rewardColumn = (1/a*df["closeness"])*((df["betweenness"]*b*df["created"])+\
-                                        (df["unique_contributed"]*(df["CF_contribution"]+df["ED_purchaseValue"]))\
+                                        (df["betweenness"]*(df["CF_contribution"]+df["ED_purchaseValue"]))\
                                             +c*df["hasVoted"]*1)\
                     /d 
     return rewardColumn
@@ -163,5 +164,5 @@ all_votes = all_votes[~all_votes["source"].isin(final_airdrop["source"])]
 all_votes["source"] = all_votes["source"].apply(lambda x: x.lower())
 all_votes["actualAirdrop"] = all_votes["actualAirdrop"].div(1000)
 
-pd.concat([final_airdrop,all_votes]).drop_duplicates(subset="source", keep="first").to_csv(r'main_datasets\mirror_finalAirdrop.csv')
+# pd.concat([final_airdrop,all_votes]).drop_duplicates(subset="source", keep="first").to_csv(r'main_datasets\mirror_finalAirdrop.csv')
 

@@ -50,11 +50,24 @@ consolidated = votes.pivot_table(index=["Voter","Voted"], values="Votes", aggfun
 consolidated.index.names=["source","target"]
 
 #add in ethereum graphs, no need to convert since this is base node.
-cf = pd.read_csv(r'main_datasets\dune_data\mirror_cf_contonly.csv', index_col=0)
-cf_cons = cf.pivot_table(index=["contributor","creator"],values="contribution",aggfunc="sum")
-cf_cons.index.names=["source","target"]
-cf_cons.columns=["CF_contribution"]
-cf_cons["CF_contribution"] = cf_cons["CF_contribution"].div(1e18)
+cf = pd.read_csv(r'main_datasets\dune_data\mirror_cf_all_graph.csv')
+
+#3 creators are missing from dune logs for some reason
+missing_creator = {'\\x41ed7d49292b8fbf9b9311c1cb4d6eb877646c58':'0x48A63097E1Ac123b1f5A8bbfFafA4afa8192FaB0', 
+                   '\\xa338f6960d1e8bcde50a8057173229dcaa4428c9':'0xA0Cf798816D4b9b9866b5330EEa46a18382f251e',
+                   '\\x94515e4f6fabad73c8bcdd8cd42f0b5c037e2c49': '0xc3268ddb8e38302763ffdc9191fcebd4c948fe1b'}
+
+def fill_missing(x):
+    try:
+        return missing_creator[x]
+    except:
+        return x
+
+cf["creator"] = cf["contract_address"].apply(lambda x: fill_missing(x)) 
+cf[["contributor","contract_address","creator"]]=cf[["contributor","contract_address","creator"]].applymap(lambda x: x.replace("\\","0"))
+cf_cont = cf.pivot_table(index=["contributor","creator"],values="contribution",aggfunc="sum")
+cf_cont.index.names=["source","target"]
+cf_cont.columns=["CF_contribution"]
 
 ed = pd.read_csv(r'main_datasets\dune_data\mirror_ed_all_graph.csv') #could join with timestamp too in future, would need more accurate timestamp from mirror supplied data
 ed[["buyer","contract_address","fundingRecipient"]]=ed[["buyer","contract_address","fundingRecipient"]].applymap(lambda x: x.replace("\\","0"))
@@ -63,12 +76,12 @@ ed_creator[["contract_address","creator","fundingRecipient"]] = ed_creator[["con
 ed_creator = ed_creator.drop_duplicates(subset=["contract_address","creator","fundingRecipient","edition_name"])
 ed_merged = pd.merge(ed,ed_creator, how="left", on=["contract_address","org_quantity","fundingRecipient","org_price"])
 
-ed_cons = ed_merged.pivot_table(index=["buyer","creator"],values="valuebought",aggfunc="sum")
-ed_cons.index.names=["source","target"]
-ed_cons.columns=["ED_purchaseValue"]
+ed_cont = ed_merged.pivot_table(index=["buyer","creator"],values="valuebought",aggfunc="sum")
+ed_cont.index.names=["source","target"]
+ed_cont.columns=["ED_purchaseValue"]
 
-consolidated = consolidated.join(cf_cons,how="outer")
-consolidated = consolidated.join(ed_cons,how="outer")
+consolidated = consolidated.join(cf_cont,how="outer")
+consolidated = consolidated.join(ed_cont,how="outer")
 
 #add in twitter graphs, converted to ethereum addresses. 
 
@@ -139,46 +152,46 @@ print("plotting graph...")
 # # viz.plot_network_clusters(G, coms, pos, figsize=(30, 30),node_size=200, top_k=10) #for small clusters
 # # viz.plot_community_graph(G, coms, figsize=(6, 6), top_k=10) #for large ones
 
-print("calculating closeness and betweenness...")
-"""closeness"""
-# closeness_h = nx.algorithms.centrality.harmonic_centrality(G) #not normalized
-closeness_c = nx.algorithms.centrality.closeness_centrality(G) #normalized, uses WF formula
+# print("calculating closeness and betweenness...")
+# """closeness"""
+# # closeness_h = nx.algorithms.centrality.harmonic_centrality(G) #not normalized
+# closeness_c = nx.algorithms.centrality.closeness_centrality(G) #normalized, uses WF formula
 
-"""betweenness"""
-# Generate connected components and select the largest:
-largest_component = max(nx.connected_components(G), key=len)
-# Create a subgraph of G consisting only of this component:
-G2 = G.subgraph(largest_component)
-# betweenness_nw= nx.algorithms.centrality.current_flow_betweenness_centrality(G2) #can be weighted... but I don't really understand this one
-betweenness_c= nx.algorithms.centrality.betweenness_centrality_source(G2) 
+# """betweenness"""
+# # Generate connected components and select the largest:
+# largest_component = max(nx.connected_components(G), key=len)
+# # Create a subgraph of G consisting only of this component:
+# G2 = G.subgraph(largest_component)
+# # betweenness_nw= nx.algorithms.centrality.current_flow_betweenness_centrality(G2) #can be weighted... but I don't really understand this one
+# betweenness_c= nx.algorithms.centrality.betweenness_centrality_source(G2) 
 
-"""putting into df"""
-eth_handle = dict(zip(full_addy.address,full_addy.username))
-def try_handle(x):
-    try:
-        return eth_handle[x]
-    except:
-        pass
+# """putting into df"""
+# eth_handle = dict(zip(full_addy.address,full_addy.username))
+# def try_handle(x):
+#     try:
+#         return eth_handle[x]
+#     except:
+#         pass
     
-def try_closeness(x):
-    try:
-        return closeness_c[x]
-    except:
-        return 1
+# def try_closeness(x):
+#     try:
+#         return closeness_c[x]
+#     except:
+#         return 1
 
-def try_betweenness(x, betweenness):
-    try:
-        return betweenness[x]
-    except:
-        return betweenness[min(betweenness, key=betweenness.get)] #minimum value
+# def try_betweenness(x, betweenness):
+#     try:
+#         return betweenness[x]
+#     except:
+#         return betweenness[min(betweenness, key=betweenness.get)] #minimum value
 
-consolidated_df = consolidated.reset_index().pivot_table(index=["source"],values=["Votes","CF_contribution","ED_purchaseValue"],aggfunc="sum").reset_index()
-consolidated_df["twitter"] = consolidated_df["source"].apply(lambda x: try_handle(x))
-consolidated_df["hasVoted"] = consolidated_df["twitter"].apply(lambda x: 1 if x != np.nan else 0)
+# consolidated_df = consolidated.reset_index().pivot_table(index=["source"],values=["Votes","CF_contribution","ED_purchaseValue"],aggfunc="sum").reset_index()
+# consolidated_df["twitter"] = consolidated_df["source"].apply(lambda x: try_handle(x))
+# consolidated_df["hasVoted"] = consolidated_df["twitter"].apply(lambda x: 1 if x != np.nan else 0)
 
-consolidated_df["closeness"] = consolidated_df["source"].apply(lambda x: try_closeness(x))
-consolidated_df["betweenness"] = consolidated_df["source"].apply(lambda x: try_betweenness(x, betweenness_c))
-consolidated_df["betweenness"] = consolidated_df["betweenness"] - min(consolidated_df["betweenness"]) #must be base 0
+# consolidated_df["closeness"] = consolidated_df["source"].apply(lambda x: try_closeness(x))
+# consolidated_df["betweenness"] = consolidated_df["source"].apply(lambda x: try_betweenness(x, betweenness_c))
+# consolidated_df["betweenness"] = consolidated_df["betweenness"] - min(consolidated_df["betweenness"]) #must be base 0
 
-print("saved!")
-consolidated_df.to_csv(r'main_datasets\mirror_graph_score_ready.csv')
+# print("saved!")
+# consolidated_df.to_csv(r'main_datasets\mirror_graph_score_ready.csv')
