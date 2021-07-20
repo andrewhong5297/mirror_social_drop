@@ -23,7 +23,7 @@ created_cf = cf.pivot_table(index="creator",values="contract_address",aggfunc=la
 created_cf = dict(zip(created_cf.index,created_cf.contract_address))
 
 ##dune is showing just editions from one contract, here there are 5 with two of them being crowdfund editions 
-#that reference editions v2 crowdfundeditions 0xAA83f3c28E68BeF31C35D2D9B81744f310BdFB64 0xEF3c951e22c65F6256746F4e227e19A5BcbF393C
+##56 total created with 37 having been purchased from. This seems right 
 ed = pd.read_csv(r'main_datasets\mirror_supplied\Editions.csv')
 ed["creator"] = ed["creator"].apply(lambda x: x.lower())
 created_ed = ed.pivot_table(index="creator",values="edition_name",aggfunc=lambda x: len(x.unique()))
@@ -57,11 +57,16 @@ consolidated_df["created"] = consolidated_df["source"].apply(lambda x: count_cre
 
 """calculate unique contrib count"""
 cf = pd.read_csv(r'main_datasets\dune_data\mirror_cf_contonly.csv', index_col=0)
-ed = pd.read_csv(r'main_datasets\dune_data\mirror_ed_graph.csv', index_col=0)
-ed.columns=["contributor","valuebought","creator"]
+ed = pd.read_csv(r'main_datasets\dune_data\mirror_ed_all_graph.csv') #could join with timestamp too in future, would need more accurate timestamp from mirror supplied data
+ed[["buyer","contract_address","fundingRecipient"]]=ed[["buyer","contract_address","fundingRecipient"]].applymap(lambda x: x.replace("\\","0"))
+ed_creator = pd.read_csv(r'main_datasets\mirror_supplied\Editions.csv')
+ed_creator[["contract_address","creator","fundingRecipient"]] = ed_creator[["contract_address","creator","fundingRecipient"]].applymap(lambda x: x.lower())
+ed_merged = pd.merge(ed,ed_creator, how="left", on=["contract_address","org_quantity","fundingRecipient","org_price"])
+ed_merged = ed_merged[["buyer","valuebought","creator"]]
+ed_merged.columns=["contributor","valuebought","creator"]
 
 #concat all
-all_contributions = pd.concat([cf[["contributor","creator"]],ed[["contributor","creator"]]])
+all_contributions = pd.concat([cf[["contributor","creator"]],ed_merged[["contributor","creator"]]])
 
 unique_contributions_df = all_contributions.pivot_table(index="contributor",values="creator",aggfunc=lambda x: len(x.unique()))
 unique_contributions = dict(zip(unique_contributions_df.index,unique_contributions_df["creator"]))
