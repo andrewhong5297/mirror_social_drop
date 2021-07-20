@@ -109,13 +109,30 @@ consolidated = consolidated.join(cf_cont,how="outer")
 consolidated = consolidated.join(ed_cont,how="outer")
 consolidated = consolidated.join(sp_graph,how="outer")
 
-
 """add in twitter data"""
+# mdf = pd.read_csv(r'main_datasets\mirror_tw_mentionedby.csv')
 
+# #we need to get the matrix of who has talked to who (co-occurence matrix) https://stackoverflow.com/questions/42814452/co-occurrence-matrix-from-nested-list-of-words
+# from scipy.sparse import csr_matrix
+# from collections import OrderedDict
 
+# document = [['A', 'B'], ['C', 'B'], ['A', 'B', 'C', 'D']] # change dataframe to list of lists? 
+# names = ['A', 'B', 'C', 'D'] #list of all twitter handles full_addy.username
 
-##make venn diag on twitter/ethereum/votes interaction overlap? 
+# occurrences = OrderedDict((name, OrderedDict((name, 0) for name in names)) for name in names)
 
+# # Find the co-occurrences:
+# for l in document:
+#     for i in range(len(l)):
+#         for item in l[:i] + l[i + 1:]:
+#             occurrences[l[i]][item] += 1
+
+# # Print the matrix:
+# print(' ', ' '.join(occurrences.keys()))
+# for name, values in occurrences.items():
+#     print(name, ' '.join(str(i) for i in values.values()))
+
+##make venn diag on twitter/ethereum/votes interaction overlap? https://www.python-graph-gallery.com/venn-diagram/
 
 """graphing starts"""
 import matplotlib.pyplot as plt

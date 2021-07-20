@@ -59,11 +59,7 @@ all_missing_contracts["editions (contract, creator, edition_name"] = list(remain
 # created_au = au.pivot_table(index="creator",values="token_id",aggfunc=lambda x: len(x.unique()))
 # created_au = dict(zip(created_au.index,created_au.token_id))
 
-# ##dune doesn't have all splits yet, here we see 58
-# sp = pd.read_csv(r'main_datasets\mirror_supplied\Splits.csv')
-# sp["creator"] = sp["creator"].apply(lambda x: x.lower())
-# created_sp = sp.pivot_table(index="creator",values="contract_address",aggfunc=lambda x: len(x.unique()))
-# created_sp = dict(zip(created_sp.index,created_sp.contract_address))
+##splits were covered by supplied data, in the future will require more of a dune setup. 
 
 mc = pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in all_missing_contracts.items() ]))
 #SAVE AS CSV AS YOU GO

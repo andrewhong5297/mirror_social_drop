@@ -58,6 +58,7 @@ consolidated_df["created"] = consolidated_df["source"].apply(lambda x: count_cre
 """calculate unique contrib count"""
 #crowdfunding
 cf_graph = pd.read_csv(r'main_datasets/crowdfunds_graph.csv')
+
 #editions
 ed_graph = pd.read_csv(r'main_datasets/editions_graph.csv')
 
@@ -65,6 +66,7 @@ ed_graph = pd.read_csv(r'main_datasets/editions_graph.csv')
 sp_graph = pd.read_csv(r'main_datasets/splits_graph.csv', index_col=0)
 
 #auctions
+
 
 #concat all
 all_contributions = pd.concat([cf_graph[["source","target"]],ed_graph[["source","target"]],sp_graph[["source","target"]]])
@@ -89,11 +91,12 @@ consolidated_df["unique_contributed"] = min_max_scaler.fit_transform(consolidate
 import numpy as np
 def calculate_rewards(df,a,b,c,d):
     #this function is explained in the airdrop proposal
-    #changed uniqueness to betweenness, it helps cap it a little but doesn't change distribution.
-    rewardColumn = (1/a*df["closeness"])*((df["betweenness"]*b*df["created"])+\
-                                        (df["betweenness"]*(df["CF_contribution"]+df["ED_purchaseValue"]))\
-                                            +c*df["hasVoted"]*1)\
-                    /d 
+    # changed uniqueness to betweenness, it helps cap it a little but doesn't change distribution.
+    # rewardColumn = (1/a*df["closeness"])*((df["betweenness"]*b*df["created"])+\
+    #                                     (df["uniqueness"]*(df["CF_contribution"]+df["ED_purchaseValue"]))\
+    #                                         +c*df["hasVoted"]*1)\
+    #                 /d 
+    rewardColumn = df["created"]+(df["CF_contribution"]+df["ED_purchaseValue"]+df["SP_value"]+df["AU_value"])
     return rewardColumn
 
 a_range = np.arange(0.1,1,0.01) #spread of rewards gets thinner as this increases (constant in front of inverse centrality)
@@ -165,5 +168,5 @@ all_votes = all_votes[~all_votes["source"].isin(final_airdrop["source"])]
 all_votes["source"] = all_votes["source"].apply(lambda x: x.lower())
 all_votes["actualAirdrop"] = all_votes["actualAirdrop"].div(1000)
 
-# pd.concat([final_airdrop,all_votes]).drop_duplicates(subset="source", keep="first").to_csv(r'main_datasets\mirror_finalAirdrop.csv')
+pd.concat([final_airdrop,all_votes]).drop_duplicates(subset="source", keep="first").to_csv(r'main_datasets\mirror_finalAirdrop.csv')
 

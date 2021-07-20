@@ -7,6 +7,13 @@ repo structure:
 - all dune py files help get data for editions, crowdfunds, auctions, and splits (saved in main_datasets -> dune_data). There are some extra manualy reconcilliations that are made for these WIP
 - for running order, it's mirror_graph_network.py (formatting all graph data to get centrality measurements) then mirror_all_features_recon.py (for rewards calculations/visualizations).
 
+for updating data in the future:
+
+- require updates from mirror team for all created splits, auctions, crowdfunds, and editions
+- require dune updates for contributors across auctions, crowdfunds, and editions. splits needs to be manual due to missing data (possible missing contract to be decoded)
+- require udpates from mirror team for twitter-ethereum address verification and votes.json file
+- require an update to twitter mentions data
+
 still left to do:
 - [ ]  make sure all contracts missing in missing_contracts.csv really had no one purchase or contribute to them (so far editions and crowdfunds are included)
 - [ ]  clean twitter mentions data (currently taking the mentions from their most recent 2000 tweets, may need to go for 5000). 
@@ -25,6 +32,7 @@ dune tasks
 
 formula/algo improvements
 - [ ]  try to implement PageRank of splits? could be an extra weighted multiplier on creator rewards, rather than the number of splits created. Could take percentages into account too.
+- [ ]  add splits and auctions and twitter data to the graph
 
 later when article after proposal: 
 - [ ]  some visualizations on how voting influence has shifted, maybe make editions NFT from this
