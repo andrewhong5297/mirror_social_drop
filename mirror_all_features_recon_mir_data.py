@@ -56,20 +56,21 @@ def count_created(x):
 consolidated_df["created"] = consolidated_df["source"].apply(lambda x: count_created(x))
 
 """calculate unique contrib count"""
-cf = pd.read_csv(r'main_datasets\dune_data\mirror_cf_contonly.csv', index_col=0)
-ed = pd.read_csv(r'main_datasets\dune_data\mirror_ed_all_graph.csv') #could join with timestamp too in future, would need more accurate timestamp from mirror supplied data
-ed[["buyer","contract_address","fundingRecipient"]]=ed[["buyer","contract_address","fundingRecipient"]].applymap(lambda x: x.replace("\\","0"))
-ed_creator = pd.read_csv(r'main_datasets\mirror_supplied\Editions.csv')
-ed_creator[["contract_address","creator","fundingRecipient"]] = ed_creator[["contract_address","creator","fundingRecipient"]].applymap(lambda x: x.lower())
-ed_merged = pd.merge(ed,ed_creator, how="left", on=["contract_address","org_quantity","fundingRecipient","org_price"])
-ed_merged = ed_merged[["buyer","valuebought","creator"]]
-ed_merged.columns=["contributor","valuebought","creator"]
+#crowdfunding
+cf_graph = pd.read_csv(r'main_datasets/crowdfunds_graph.csv')
+#editions
+ed_graph = pd.read_csv(r'main_datasets/editions_graph.csv')
+
+#splits
+sp_graph = pd.read_csv(r'main_datasets/splits_graph.csv', index_col=0)
+
+#auctions
 
 #concat all
-all_contributions = pd.concat([cf[["contributor","creator"]],ed_merged[["contributor","creator"]]])
+all_contributions = pd.concat([cf_graph[["source","target"]],ed_graph[["source","target"]],sp_graph[["source","target"]]])
 
-unique_contributions_df = all_contributions.pivot_table(index="contributor",values="creator",aggfunc=lambda x: len(x.unique()))
-unique_contributions = dict(zip(unique_contributions_df.index,unique_contributions_df["creator"]))
+unique_contributions_df = all_contributions.pivot_table(index="source",values="target",aggfunc=lambda x: len(x.unique()))
+unique_contributions = dict(zip(unique_contributions_df.index,unique_contributions_df["target"]))
 
 def try_unique(x):
     try:

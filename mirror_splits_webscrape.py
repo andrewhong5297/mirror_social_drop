@@ -23,13 +23,18 @@ driver = webdriver.Chrome()
 
 cols = ["creator","split_address","etherscan_address","total_recieved","ENS_publication"] 
 data = pd.DataFrame(columns=cols, index=np.arange(1000))
-myurl = "https://mirror.xyz/splits/"
+# myurl = "https://mirror.xyz/splits/"
+myurl = "https://etherscan.io/exportData?type=address&a="
 
 sp = pd.read_csv(r'main_datasets\mirror_supplied\Splits.csv')
 split_addresses = list(set(sp["contract_address"]))
 
+# etherscan_api_key = "FQKZCMUAQUA688R7FVDIH9BGD6698JIFPZ"
+
+# address = split_addresses[0]
+
 df_idx=0
-for address in splits_addresses:
+for address in split_addresses:
     driver.get(myurl+address)
     
     time.sleep(5)

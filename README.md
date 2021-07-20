@@ -11,17 +11,15 @@ still left to do:
 - [ ]  make sure all contracts missing in missing_contracts.csv really had no one purchase or contribute to them (so far editions and crowdfunds are included)
 - [ ]  clean twitter mentions data (currently taking the mentions from their most recent 2000 tweets, may need to go for 5000). 
 - [ ]  check that QA creators and contributions are removed from data. Can probably do this if I have the addresses used for testing.
+- [ ]  remove all contributions from creator or contract to splits, editions, crowdfunds, and auctions.
 - [x]  editions don't have a creator, instead event logs just show the funds receipient who I have labelled as the creator. This may be undesireable 
 - [x]  check that those without Twitter handles don't get the `hasVoted` bool rewards
 - [x]  check that those who aren't part of the extra rewards are still part of the airdrop (i.e. those I removed who voted for themselves, or haven't voted at all)
 - [x]  expand on writing of article intro in notion
 - [x]  expand on formula derivation thought process, tying it to changes in the intro
 
-webscraping tasks
-- [ ]  reconcile why some splits aren't appearing in dune (https://duneanalytics.com/queries/84423), only 21 splits show up, and 7 in the old splits. Missing at least 20 somewhere
-
 dune tasks
-- [ ]  make contributors graph queries for auctions and splits
+- [ ]  make contributors graph queries for auctions
 - [x]  get all reserve auction version data (v2, v3, and v4 still being decoded for dune. May then map it back to the NFTfactory for sanity checks)
 - [x]  get all tiered crowdfunds (still being decoded for dune)
 
