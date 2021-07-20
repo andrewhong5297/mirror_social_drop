@@ -126,59 +126,59 @@ print("plotting graph...")
 # plt.show() 
 
 """community graph analysis (uncomment only when you want to run the algos)"""
-# from cdlib import algorithms
-# coms = algorithms.louvain(G) 
-# coms.average_internal_degree()
-# coms.node_coverage
-# com_ipca = algorithms.ipca(G)
-# com_girvan = algorithms.girvan_newman(G, level=3)
+# # from cdlib import algorithms
+# # coms = algorithms.louvain(G) 
+# # coms.average_internal_degree()
+# # coms.node_coverage
+# # com_ipca = algorithms.ipca(G)
+# # com_girvan = algorithms.girvan_newman(G, level=3)
 
-# from cdlib import viz
+# # from cdlib import viz
 
-# pos = nx.spring_layout(G) #look at more layouts later, I know there's a circle one and this one increases spread. 
-# viz.plot_network_clusters(G, coms, pos, figsize=(30, 30),node_size=200, top_k=10) #for small clusters
-# viz.plot_community_graph(G, coms, figsize=(6, 6), top_k=10) #for large ones
+# # pos = nx.spring_layout(G) #look at more layouts later, I know there's a circle one and this one increases spread. 
+# # viz.plot_network_clusters(G, coms, pos, figsize=(30, 30),node_size=200, top_k=10) #for small clusters
+# # viz.plot_community_graph(G, coms, figsize=(6, 6), top_k=10) #for large ones
 
-# print("calculating closeness and betweenness...")
-# """closeness"""
-# # closeness_h = nx.algorithms.centrality.harmonic_centrality(G) #not normalized
-# closeness_c = nx.algorithms.centrality.closeness_centrality(G) #normalized, uses WF formula
+print("calculating closeness and betweenness...")
+"""closeness"""
+# closeness_h = nx.algorithms.centrality.harmonic_centrality(G) #not normalized
+closeness_c = nx.algorithms.centrality.closeness_centrality(G) #normalized, uses WF formula
 
-# """betweenness"""
-# # Generate connected components and select the largest:
-# largest_component = max(nx.connected_components(G), key=len)
-# # Create a subgraph of G consisting only of this component:
-# G2 = G.subgraph(largest_component)
-# # betweenness_nw= nx.algorithms.centrality.current_flow_betweenness_centrality(G2) #can be weighted... but I don't really understand this one
-# betweenness_c= nx.algorithms.centrality.betweenness_centrality_source(G2) 
+"""betweenness"""
+# Generate connected components and select the largest:
+largest_component = max(nx.connected_components(G), key=len)
+# Create a subgraph of G consisting only of this component:
+G2 = G.subgraph(largest_component)
+# betweenness_nw= nx.algorithms.centrality.current_flow_betweenness_centrality(G2) #can be weighted... but I don't really understand this one
+betweenness_c= nx.algorithms.centrality.betweenness_centrality_source(G2) 
 
-# """putting into df"""
-# eth_handle = dict(zip(full_addy.address,full_addy.username))
-# def try_handle(x):
-#     try:
-#         return eth_handle[x]
-#     except:
-#         pass
+"""putting into df"""
+eth_handle = dict(zip(full_addy.address,full_addy.username))
+def try_handle(x):
+    try:
+        return eth_handle[x]
+    except:
+        pass
     
-# def try_closeness(x):
-#     try:
-#         return closeness_c[x]
-#     except:
-#         return 1
+def try_closeness(x):
+    try:
+        return closeness_c[x]
+    except:
+        return 1
 
-# def try_betweenness(x, betweenness):
-#     try:
-#         return betweenness[x]
-#     except:
-#         return betweenness[min(betweenness, key=betweenness.get)] #minimum value
+def try_betweenness(x, betweenness):
+    try:
+        return betweenness[x]
+    except:
+        return betweenness[min(betweenness, key=betweenness.get)] #minimum value
 
-# consolidated_df = consolidated.reset_index().pivot_table(index=["source"],values=["Votes","CF_contribution","ED_purchaseValue"],aggfunc="sum").reset_index()
-# consolidated_df["twitter"] = consolidated_df["source"].apply(lambda x: try_handle(x))
-# consolidated_df["hasVoted"] = consolidated_df["twitter"].apply(lambda x: 1 if x != np.nan else 0)
+consolidated_df = consolidated.reset_index().pivot_table(index=["source"],values=["Votes","CF_contribution","ED_purchaseValue"],aggfunc="sum").reset_index()
+consolidated_df["twitter"] = consolidated_df["source"].apply(lambda x: try_handle(x))
+consolidated_df["hasVoted"] = consolidated_df["twitter"].apply(lambda x: 1 if x != np.nan else 0)
 
-# consolidated_df["closeness"] = consolidated_df["source"].apply(lambda x: try_closeness(x))
-# consolidated_df["betweenness"] = consolidated_df["source"].apply(lambda x: try_betweenness(x, betweenness_c))
-# consolidated_df["betweenness"] = consolidated_df["betweenness"] - min(consolidated_df["betweenness"]) #must be base 0
+consolidated_df["closeness"] = consolidated_df["source"].apply(lambda x: try_closeness(x))
+consolidated_df["betweenness"] = consolidated_df["source"].apply(lambda x: try_betweenness(x, betweenness_c))
+consolidated_df["betweenness"] = consolidated_df["betweenness"] - min(consolidated_df["betweenness"]) #must be base 0
 
-# print("saved!")
-# consolidated_df.to_csv(r'main_datasets\mirror_graph_score_ready.csv')
+print("saved!")
+consolidated_df.to_csv(r'main_datasets\mirror_graph_score_ready.csv')
