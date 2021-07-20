@@ -16,26 +16,26 @@ start recon for calcuating rewards
 consolidated_df = pd.read_csv(r'main_datasets\mirror_graph_score_ready.csv', index_col=0)
 
 """calculate created count"""
-##dune is showing 17 crowdfunds, here we see 27. 
+#entries created
+ent = pd.read_csv(r'main_datasets\mirror_supplied\Entries_created.csv')
+ent.address = ent.address.apply(lambda x: x.lower())
+created_ent = dict(zip(ent.address,ent.num_entries))
+
 cf = pd.read_csv(r'main_datasets\mirror_supplied\Crowdfunds.csv')
 cf["creator"] = cf["creator"].apply(lambda x: x.lower())
 created_cf = cf.pivot_table(index="creator",values="contract_address",aggfunc=lambda x: len(x.unique()))
 created_cf = dict(zip(created_cf.index,created_cf.contract_address))
 
-##dune is showing just editions from one contract, here there are 5 with two of them being crowdfund editions 
-##56 total created with 37 having been purchased from. This seems right 
 ed = pd.read_csv(r'main_datasets\mirror_supplied\Editions.csv')
 ed["creator"] = ed["creator"].apply(lambda x: x.lower())
 created_ed = ed.pivot_table(index="creator",values="edition_name",aggfunc=lambda x: len(x.unique()))
 created_ed = dict(zip(created_ed.index,created_ed.edition_name))
 
-##dune doesn't have all auctions yet, here we see 49
 au = pd.read_csv(r'main_datasets\mirror_supplied\ReserveAuctions.csv')
 au["creator"] = au["creator"].apply(lambda x: x.lower())
 created_au = au.pivot_table(index="creator",values="token_id",aggfunc=lambda x: len(x.unique()))
 created_au = dict(zip(created_au.index,created_au.token_id))
 
-##dune doesn't have all splits yet, here we see 58
 sp = pd.read_csv(r'main_datasets\mirror_supplied\Splits.csv')
 sp["creator"] = sp["creator"].apply(lambda x: x.lower())
 created_sp = sp.pivot_table(index="creator",values="contract_address",aggfunc=lambda x: len(x.unique()))
@@ -51,6 +51,8 @@ def count_created(x):
         total += created_au[x]
     if x in created_sp:
         total += created_sp[x]
+    if x in created_ent:
+        total += created_ent[x]
     return total 
 
 consolidated_df["created"] = consolidated_df["source"].apply(lambda x: count_created(x))
@@ -66,10 +68,11 @@ ed_graph = pd.read_csv(r'main_datasets/editions_graph.csv')
 sp_graph = pd.read_csv(r'main_datasets/splits_graph.csv', index_col=0)
 
 #auctions
-
+au_graph = pd.read_csv(r'main_datasets/auctions_graph.csv')
 
 #concat all
-all_contributions = pd.concat([cf_graph[["source","target"]],ed_graph[["source","target"]],sp_graph[["source","target"]]])
+all_contributions = pd.concat([cf_graph[["source","target"]],ed_graph[["source","target"]],
+                               sp_graph[["source","target"]],au_graph[["source","target"]]])
 
 unique_contributions_df = all_contributions.pivot_table(index="source",values="target",aggfunc=lambda x: len(x.unique()))
 unique_contributions = dict(zip(unique_contributions_df.index,unique_contributions_df["target"]))

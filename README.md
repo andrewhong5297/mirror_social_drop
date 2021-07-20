@@ -16,7 +16,7 @@ for updating data in the future:
 
 still left to do:
 - [ ]  make sure all contracts missing in missing_contracts.csv really had no one purchase or contribute to them (so far editions and crowdfunds are included)
-- [ ]  clean twitter mentions data (currently taking the mentions from their most recent 2000 tweets, may need to go for 5000). 
+- [x]  clean twitter mentions data (currently taking the mentions from their most recent 2000 tweets, may need to go for 5000). 
 - [ ]  check that QA creators and contributions are removed from data. Can probably do this if I have the addresses used for testing.
 - [ ]  remove all contributions from creator or contract to splits, editions, crowdfunds, and auctions.
 - [x]  editions don't have a creator, instead event logs just show the funds receipient who I have labelled as the creator. This may be undesireable 
@@ -26,13 +26,13 @@ still left to do:
 - [x]  expand on formula derivation thought process, tying it to changes in the intro
 
 dune tasks
-- [ ]  make contributors graph queries for auctions
+- [x]  make contributors graph queries for auctions
 - [x]  get all reserve auction version data (v2, v3, and v4 still being decoded for dune. May then map it back to the NFTfactory for sanity checks)
 - [x]  get all tiered crowdfunds (still being decoded for dune)
 
 formula/algo improvements
 - [ ]  try to implement PageRank of splits? could be an extra weighted multiplier on creator rewards, rather than the number of splits created. Could take percentages into account too.
-- [ ]  add splits and auctions and twitter data to the graph
+- [x]  add splits and auctions and twitter data to the graph
 
 later when article after proposal: 
 - [ ]  some visualizations on how voting influence has shifted, maybe make editions NFT from this
