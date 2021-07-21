@@ -4,8 +4,6 @@ Created on Fri Jul 16 18:15:56 2021
 
 @author: Andrew
 
-need to refactor this into 4 different scripts lol
-
 """
 
 import pandas as pd
@@ -14,11 +12,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 #setting up address twitter mapping
-votes = pd.read_csv(r'main_datasets\voting_graph_full.csv', index_col=0)
+votes = pd.read_csv(r'main_datasets/graph_data/voting_graph_full.csv', index_col=0)
 #len(set(df["Voter"].append(df["Voted"]))) 2130 nodes total
 votes = votes[votes["Voter"]!=votes["Voted"]] #remove those who voted for self
 
-#this address <> twitter handle mapping should ONLY be used here to avoid mapping errors.
 full_addy = pd.read_csv(r'main_datasets/mirror_supplied/mirror_tv.csv', index_col=0)
 full_addy = full_addy.drop_duplicates(subset="username",keep="first") #this is REALLY important since some users have verified more than once, but the votes json file registers only their first signed address
 full_addy.address = full_addy.address.apply(lambda x: x.lower())
@@ -30,7 +27,7 @@ print("plotting graph...")
 consolidated = pd.read_csv(r'main_datasets/mirror_graph_processed.csv', index_col=["source","target"])
 consolidated_melt = consolidated.melt(ignore_index=False).dropna()
 consolidated_melt.reset_index(inplace=True)
-consolidated_melt = consolidated_melt[consolidated_melt["variable"]=="Votes"]
+# consolidated_melt = consolidated_melt[consolidated_melt["variable"]=="Votes"] #for eselecting only one to plot
 
 color_key = {"Votes":"black","mentions":"royalblue","CF_contribution":"rosybrown","ED_purchaseValue":"rosybrown","SP_value":"rosybrown","AU_value":"rosybrown"}
 width_key = {"Votes":1,"mentions":1.5,"CF_contribution":2,"ED_purchaseValue":2,"SP_value":2,"AU_value":2}
@@ -77,49 +74,49 @@ plt.axis('off')
 plt.show() 
 
 """community graph analysis (uncomment only when you want to run the algos)"""
-# print("calculating closeness and betweenness...")
-# """closeness"""
-# # closeness_h = nx.algorithms.centrality.harmonic_centrality(G) #not normalized
-# closeness_c = nx.algorithms.centrality.closeness_centrality(G) #normalized, uses WF formula
+print("calculating closeness and betweenness...")
+"""closeness"""
+# closeness_h = nx.algorithms.centrality.harmonic_centrality(G) #not normalized
+closeness_c = nx.algorithms.centrality.closeness_centrality(G) #normalized, uses WF formula
 
-# """betweenness"""
-# # Generate connected components and select the largest:
-# largest_component = max(nx.connected_components(G), key=len)
-# # Create a subgraph of G consisting only of this component:
-# G2 = G.subgraph(largest_component)
-# betweenness_c= nx.algorithms.centrality.betweenness_centrality_source(G2) 
+"""betweenness"""
+# Generate connected components and select the largest:
+largest_component = max(nx.connected_components(G), key=len)
+# Create a subgraph of G consisting only of this component:
+G2 = G.subgraph(largest_component)
+betweenness_c= nx.algorithms.centrality.betweenness_centrality_source(G2) 
 
-# """putting into df"""
-# eth_handle = dict(zip(full_addy.address,full_addy.username))
-# def try_handle(x):
-#     try:
-#         return eth_handle[x]
-#     except:
-#         pass
+"""putting into df"""
+eth_handle = dict(zip(full_addy.address,full_addy.username))
+def try_handle(x):
+    try:
+        return eth_handle[x]
+    except:
+        pass
     
-# def try_closeness(x):
-#     try:
-#         return closeness_c[x]
-#     except:
-#         return 1
+def try_closeness(x):
+    try:
+        return closeness_c[x]
+    except:
+        return 1
 
-# def try_betweenness(x, betweenness):
-#     try:
-#         return betweenness[x]
-#     except:
-#         return betweenness[min(betweenness, key=betweenness.get)] #minimum value
+def try_betweenness(x, betweenness):
+    try:
+        return betweenness[x]
+    except:
+        return betweenness[min(betweenness, key=betweenness.get)] #minimum value
 
-# consolidated_score = consolidated.reset_index().pivot_table(index=["source"],values=["Votes","CF_contribution","ED_purchaseValue","SP_value","AU_value","mentions"]
-#                                                             ,aggfunc="sum").reset_index()
-# consolidated_score["twitter"] = consolidated_score["source"].apply(lambda x: try_handle(x))
-# consolidated_score["hasVoted"] = consolidated_score["twitter"].apply(lambda x: 1 if x != np.nan else 0)
+consolidated_score = consolidated.reset_index().pivot_table(index=["source"],values=["Votes","CF_contribution","ED_purchaseValue","SP_value","AU_value","mentions"]
+                                                            ,aggfunc="sum").reset_index()
+consolidated_score["twitter"] = consolidated_score["source"].apply(lambda x: try_handle(x))
+consolidated_score["hasVoted"] = consolidated_score["twitter"].apply(lambda x: 1 if x != np.nan else 0)
 
-# consolidated_score["closeness"] = consolidated_score["source"].apply(lambda x: try_closeness(x))
-# consolidated_score["betweenness"] = consolidated_score["source"].apply(lambda x: try_betweenness(x, betweenness_c))
-# consolidated_score["betweenness"] = consolidated_score["betweenness"] - min(consolidated_score["betweenness"]) #must be base 0
+consolidated_score["closeness"] = consolidated_score["source"].apply(lambda x: try_closeness(x))
+consolidated_score["betweenness"] = consolidated_score["source"].apply(lambda x: try_betweenness(x, betweenness_c))
+consolidated_score["betweenness"] = consolidated_score["betweenness"] - min(consolidated_score["betweenness"]) #must be base 0
 
-# print("saved!")
-# consolidated_score.to_csv(r'main_datasets\mirror_graph_score_ready.csv')
+print("saved!")
+consolidated_score.to_csv(r'main_datasets\mirror_graph_score_ready.csv')
 
 ##make venn diag on how many people mentioned, voted, and contributed to each other overlap. This could deff be refactored hahaha
 from matplotlib_venn import venn3

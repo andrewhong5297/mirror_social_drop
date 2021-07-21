@@ -60,16 +60,16 @@ consolidated_score["created"] = consolidated_score["source"].apply(lambda x: cou
 
 """calculate unique contrib count"""
 #crowdfunding
-cf_graph = pd.read_csv(r'main_datasets/crowdfunds_graph.csv')
+cf_graph = pd.read_csv(r'main_datasets/graph_data/crowdfunds_graph.csv')
 
 #editions
-ed_graph = pd.read_csv(r'main_datasets/editions_graph.csv')
+ed_graph = pd.read_csv(r'main_datasets/graph_data/editions_graph.csv')
 
 #splits
-sp_graph = pd.read_csv(r'main_datasets/splits_graph.csv', index_col=0)
+sp_graph = pd.read_csv(r'main_datasets/graph_data/splits_graph.csv', index_col=0)
 
 #auctions
-au_graph = pd.read_csv(r'main_datasets/auctions_graph.csv')
+au_graph = pd.read_csv(r'main_datasets/graph_data/auctions_graph.csv')
 
 #concat all
 all_contributions = pd.concat([cf_graph[["source","target"]],ed_graph[["source","target"]],
@@ -90,32 +90,10 @@ min_max_scaler = preprocessing.MinMaxScaler()
 
 consolidated_score["unique_contributed"] = min_max_scaler.fit_transform(consolidated_score[["unique_contributed"]]) #normalized
 
-"""simulate rewards"""
-def calculate_rewards(df,a,b,c,d):
-    #this function is explained in the airdrop proposal
-    # changed uniqueness to betweenness, it helps cap it a little but doesn't change distribution.
-    # rewardColumn = (1/a*df["closeness"])*((df["betweenness"]*b*df["created"])+\
-    #                                     (df["uniqueness"]*(df["CF_contribution"]+df["ED_purchaseValue"]))\
-    #                                         +c*df["hasVoted"]*1)\
-    #                 /d 
-    rewardColumn = df["created"]+(df["CF_contribution"]+df["ED_purchaseValue"]+df["SP_value"]+df["AU_value"])
-    return rewardColumn
-
-a_range = np.arange(0.1,1,0.01) #spread of rewards gets thinner as this increases (constant in front of inverse centrality)
-#can we store all results and then boxplot? 
-
-consolidated_score["tokenRewards"]= calculate_rewards(consolidated_score,a=0.5,b=10,c=0.5,d=1)
-print("Total tokens distributed: {}".format(sum(consolidated_score["tokenRewards"])))
-
-"""Finally, the total airdrop including currently held $WRITE tokens"""
-import matplotlib.pyplot as plt
-import seaborn as sns
-consolidated_score["centrality_level"] = ["high" if closeness > 0.33 else "low" for closeness in consolidated_score["closeness"]]
-address_centrality = dict(zip(consolidated_score.source, consolidated_score.centrality_level))
-
-votes_before = pd.read_json(r'main_datasets\mirror_supplied\votingdata.json')
+"""add in existing votes and other voters"""
+votes_df = pd.read_json(r'main_datasets\mirror_supplied\votingdata.json')
 # votes_before.to_csv(r'main_datasets\votingdata_cleaning.csv')
-votes_before_dict = dict(zip(votes_before["account"].apply(lambda x: x.lower()),votes_before.originalVotingPower))
+votes_before_dict = dict(zip(votes_df["account"].apply(lambda x: x.lower()),votes_df.originalVotingPower))
 
 def assign_old_votes(x):
     try:
@@ -124,51 +102,96 @@ def assign_old_votes(x):
         return 0
     
 consolidated_score["votes_before"] = consolidated_score["source"].apply(lambda x: assign_old_votes(x))
-consolidated_score["actualAirdrop"] = consolidated_score["tokenRewards"] + consolidated_score["votes_before"].div(1000) #add on current votes
-consolidated_score["votes_after"] = consolidated_score["actualAirdrop"]*1000
 
-for_boxplot = consolidated_score[["source","votes_before","votes_after"]]
-for_boxplot.set_index("source",inplace=True)
-for_boxplot = for_boxplot.melt(ignore_index=False)
-for_boxplot.columns=["state","votes_allocated"]
-for_boxplot.reset_index(inplace=True)
-for_boxplot["centrality_level"] = for_boxplot["source"].apply(lambda x: address_centrality[x])
+#this runs pretty slow rn lol
+votes_df["account"] = votes_df["account"].apply(lambda x: x.lower())
+votes_df = votes_df[~votes_df["account"].isin(consolidated_score["source"])]
+for index, row in votes_df.iterrows():
+    new_row = {"source":row["account"],"closeness":0,"votes_before":row["originalVotingPower"],"twitter":row["username"]}
+    consolidated_score = consolidated_score.append(new_row, ignore_index=True)
 
-for_boxplot["votes_allocated_log"] = for_boxplot["votes_allocated"].apply(lambda x: np.log(x))
-for_boxplot["votes_allocated_log"] = for_boxplot["votes_allocated_log"].replace(-np.inf,0)
+"""@todo: manual add of bidder boolean for now, get from dune later and add into preprocessing""" 
+bidders = pd.read_csv(r'main_datasets/mirror_supplied/auctionbidders.json')
+bidders = [bidder.lower() for bidder in bidders.columns]
 
-# sns.histplot(data=for_boxplot, x="votes_allocated_log", hue="state", kde=True)
+def did_bid(x):
+    if x in bidders:
+        return 1
+    else:
+        return 0
 
-#could add hue here for community, i.e. writer and non writer? or by centrality > and < 0.3? 
-fig, ax = plt.subplots(figsize=(10,10))
-sns.violinplot(x="state", y="votes_allocated_log", 
-               hue="centrality_level", split=True,
-               data=for_boxplot, ax=ax)
-sns.despine(offset=10, trim=True)
-ax.set(title="Votes Allocated Before and After Airdrop (Logarithmic)")
+consolidated_score["did_bid"] = consolidated_score["source"].apply(lambda x: did_bid(x))
+consolidated_score.fillna(0,inplace=True)
 
-# for_kde = consolidated_score[["votes_before","votes_after"]]
-# for_kde = for_kde.apply(lambda x: np.log(x))
-# for_kde = for_kde.replace(-np.inf,0)
+contract_addresses = ['0xff2f509668048d4fde4f40fedab3334ce104a39b','0x612e8126b11f7d2596be800278ecf2515c85aa5b','0x60e3fb18828a348e5bbb66fa06371933370c0209']
 
-# fig, ax = plt.subplots(figsize=(8,8))
-# sns.kdeplot(
-#     x=for_kde["votes_before"], y=for_kde["votes_after"],
-#     cmap="rocket_r", fill=True,
-#     clip=(-5, 5), cut=10,
-#     thresh=0, levels=15,
-#     ax=ax,
-#     )
-# ax.set_axis_off()
-# ax.set(xlim=(0.1, 0.4), ylim=(-0.1, 0.05))
+consolidated_score = consolidated_score[~consolidated_score["source"].isin(contract_addresses)]
 
-final_airdrop = consolidated_score[["source","twitter","actualAirdrop"]]
+"""rewards simulations"""
+# top_200_bw = set(consolidated_score.sort_values(by="betweenness", ascending=False)["source"][:200])
+did_contribute = set(consolidated_score[(consolidated_score["CF_contribution"]!=0) | (consolidated_score["ED_purchaseValue"]!=0) 
+                     | (consolidated_score["SP_value"]!=0) | (consolidated_score["AU_value"]!=0) | (consolidated_score["did_bid"]!=0)]["source"])
+consolidated_score["total_contributions"] = consolidated_score["CF_contribution"]+consolidated_score["ED_purchaseValue"]+consolidated_score["AU_value"]+consolidated_score["SP_value"]
 
-all_votes = votes_before[["account","username","originalVotingPower"]]
-all_votes.columns = ["source", "twitter", "actualAirdrop"]
-all_votes = all_votes[~all_votes["source"].isin(final_airdrop["source"])]
-all_votes["source"] = all_votes["source"].apply(lambda x: x.lower())
-all_votes["actualAirdrop"] = all_votes["actualAirdrop"].div(1000)
+creator_reward = 1
+contributor_reward = 2
 
-pd.concat([final_airdrop,all_votes]).drop_duplicates(subset="source", keep="first").to_csv(r'main_datasets\mirror_finalAirdrop.csv')
+consolidated_score["did_contribute"] = consolidated_score["source"].apply(lambda x: contributor_reward if x in did_contribute else 0)
+consolidated_score["did_create"] = consolidated_score["created"].apply(lambda x: creator_reward if x > 0 else 0)
+# consolidated_score["is_top200"] = consolidated_score["source"].apply(lambda x: 1 if x in top_200_bw else 0)
+
+consolidated_score["baseRewards"] = (consolidated_score["betweenness"]+1)*\
+                                            (\
+                                             consolidated_score["votes_before"].div(1000)\
+                                            + consolidated_score["did_create"]\
+                                            + (consolidated_score["did_contribute"]*consolidated_score["total_contributions"]*consolidated_score["unique_contributed"]).div(10)\
+                                            )
+                                    # + consolidated_score["is_top200"]
+
+# def calculate_weighted_rewards(df,a,b,c,d):
+#     #this function is explained in the airdrop proposal
+#     # changed uniqueness to betweenness, it helps cap it a little but doesn't change distribution.
+#     rewardColumn = (1/a*df["closeness"])*((df["betweenness"]*b*df["created"])+\
+#                                         (df["unique_contributed"]*df["total_contributions"])\
+#                                             +c*df["hasVoted"]*1)\
+#                     /d + df["votes_before"].div(1000)
+#     return rewardColumn
+
+# a_range = np.arange(0.1,1,0.01) #spread of rewards gets thinner as this increases (constant in front of inverse centrality)
+# #can we store all results and then boxplot? 
+
+# consolidated_score["weightedTokenRewards"]= calculate_weighted_rewards(consolidated_score,a=0.5,b=10,c=0.5,d=1)
+
+"""Finally, the total airdrop including currently held $WRITE tokens"""
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+consolidated_score["centrality_level"] = ["high" if closeness > 0.33 else "low" for closeness in consolidated_score["closeness"]]
+address_centrality = dict(zip(consolidated_score.source, consolidated_score.centrality_level))
+
+def check_distribution(df, airdropType):
+    df["actualAirdrop"] = df[airdropType]
+    df["votes_after"] = df["actualAirdrop"]*1000
+    for_boxplot = df[["source","votes_before","votes_after"]]
+    for_boxplot.set_index("source",inplace=True)
+    for_boxplot = for_boxplot.melt(ignore_index=False)
+    for_boxplot.columns=["state","votes_allocated"]
+    for_boxplot.reset_index(inplace=True)
+    for_boxplot["centrality_level"] = for_boxplot["source"].apply(lambda x: address_centrality[x])
+    
+    for_boxplot["votes_allocated_log"] = for_boxplot["votes_allocated"].apply(lambda x: np.log(x))
+    for_boxplot["votes_allocated_log"] = for_boxplot["votes_allocated_log"].replace(-np.inf,0)
+    
+    fig, ax = plt.subplots(figsize=(10,10))
+    sns.violinplot(x="state", y="votes_allocated_log", 
+                    hue="centrality_level", split=True,
+                    data=for_boxplot, ax=ax)
+    sns.despine(offset=10, trim=True)
+    ax.set(title="Votes Allocated Before and After {} Airdrop (Logarithmic)".format(airdropType))
+    print("Total tokens distributed: {}".format(sum(consolidated_score[airdropType])))
+
+check_distribution(consolidated_score,"baseRewards") #weightedTokenRewards
+
+consolidated_score.to_csv(r'main_datasets\mirror_baseAirdrop.csv')
+
 

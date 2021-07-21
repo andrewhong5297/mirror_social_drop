@@ -22,13 +22,12 @@ print("starting preprocessing...")
         
 # len(set(vote_graph["Voter"])) #only 2041 out of 7000 handle have voted?
 
-# vote_graph.to_csv(r'main_datasets\voting_graph_full.csv')
+# vote_graph.to_csv(r'main_datasets/graph_data/voting_graph_full.csv')
 
-votes = pd.read_csv(r'main_datasets\voting_graph_full.csv', index_col=0)
+votes = pd.read_csv(r'main_datasets/graph_data/voting_graph_full.csv', index_col=0)
 #len(set(df["Voter"].append(df["Voted"]))) 2130 nodes total
 votes = votes[votes["Voter"]!=votes["Voted"]] #remove those who voted for self
 
-#this address <> twitter handle mapping should ONLY be used here to avoid mapping errors.
 full_addy = pd.read_csv(r'main_datasets/mirror_supplied/mirror_tv.csv', index_col=0)
 # verified_num = full_addy.pivot_table(index="username", values="address", aggfunc="count")
 full_addy = full_addy.drop_duplicates(subset="username",keep="first") #this is REALLY important since some users have verified more than once, but the votes json file registers only their first signed address
@@ -67,7 +66,7 @@ cf[["contributor","contract_address","creator"]]=cf[["contributor","contract_add
 cf_graph = cf.pivot_table(index=["contributor","creator"],values="contribution",aggfunc="sum")
 cf_graph.index.names=["source","target"]
 cf_graph.columns=["CF_contribution"]
-cf_graph.to_csv(r'main_datasets/crowdfunds_graph.csv')
+cf_graph.to_csv(r'main_datasets/graph_data/crowdfunds_graph.csv')
 
 #editions
 ed = pd.read_csv(r'main_datasets\dune_data\mirror_ed_all_graph.csv') #could join with timestamp too in future, would need more accurate timestamp from mirror supplied data
@@ -80,7 +79,7 @@ ed_merged = pd.merge(ed,ed_creator, how="left", on=["contract_address","org_quan
 ed_graph = ed_merged.pivot_table(index=["buyer","creator"],values="valuebought",aggfunc="sum")
 ed_graph.index.names=["source","target"]
 ed_graph.columns=["ED_purchaseValue"]
-ed_graph.to_csv(r'main_datasets/editions_graph.csv')
+ed_graph.to_csv(r'main_datasets/graph_data/editions_graph.csv')
 
 #splits
 sp = pd.read_json('main_datasets/mirror_supplied/SplitsContributions.json')
@@ -97,7 +96,7 @@ for index, row in sp_merged.iterrows():
     for tip in tips:
         new_row = {"source": tip["from"], "SP_value":tip["value"],"target":row["creator"]}
         sp_graph = sp_graph.append(new_row, ignore_index=True)
-sp_graph.to_csv(r'main_datasets/splits_graph.csv')
+sp_graph.to_csv(r'main_datasets/graph_data/splits_graph.csv')
 sp_graph.set_index(["source","target"],inplace=True)
 
 #auctions
@@ -105,7 +104,9 @@ au = pd.read_csv(r'main_datasets/dune_data/mirror_au_all_graph.csv')
 au[["buyer","creator"]]=au[["buyer","creator"]].applymap(lambda x: x.replace("\\","0"))
 au_graph = au.pivot_table(index=["buyer","creator"],values="AU_value",aggfunc="sum")
 au_graph.index.names=["source","target"]
-au_graph.to_csv(r'main_datasets/auctions_graph.csv')
+au_graph.to_csv(r'main_datasets/graph_data/auctions_graph.csv')
+
+#add in auction bidder boolean (1 0)
 
 ##add it all to consolidated df
 consolidated = consolidated.join(cf_graph,how="outer")
@@ -133,7 +134,7 @@ for column in tqdm(mdf.columns):
             twitter_graph = twitter_graph.append(new_mention, ignore_index=True)
             
 twitter_graph = twitter_graph.pivot_table(index=["source","target"],values="mentions", aggfunc="sum")
-twitter_graph.to_csv(r'main_datasets/twitter_graph.csv')
+twitter_graph.to_csv(r'main_datasets/graph_data/twitter_graph.csv')
 
 consolidated = consolidated.join(twitter_graph,how="outer")
 
