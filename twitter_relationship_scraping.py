@@ -86,8 +86,3 @@ for user in tqdm(users[len(mentioned_by):]):
 ##testing
 # favorites_temp = tweepy.Cursor(api.favorites,id="andrewhong5297").items(10)
 # favorites["andrewhong5297"] = [favorite for favorite in favorites_temp]
-
-"""formatting graph data for mentions"""
-mdf = pd.read_csv(r'main_datasets\mirror_tw_mentionedby.csv', index_col=0)
-
-#for each column, create a pivot and then make graph data from that pivot then append to dataframe. 

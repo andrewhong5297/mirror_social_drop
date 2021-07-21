@@ -5,7 +5,7 @@ https://www.notion.so/Mirror-Data-Analysis-and-WRITE-Airdrop-Proposal-cd5cc3be4e
 repo structure:
 
 - all dune py files help get data for editions, crowdfunds, auctions, and splits (saved in main_datasets -> dune_data). There are some extra manualy reconcilliations that are made for these WIP
-- for running order, it's mirror_graph_network.py (formatting all graph data to get centrality measurements) then mirror_all_features_recon.py (for rewards calculations/visualizations).
+- for running order, run scripts 1_, 2_, and 3_ for graph networks. 
 
 for updating data in the future:
 
@@ -37,3 +37,4 @@ formula/algo improvements
 later when article after proposal: 
 - [ ]  some visualizations on how voting influence has shifted, maybe make editions NFT from this
 - [ ]  crowdfunds don't have caps in event logs, this will have to be scraped manually later (not for airdrop but for our_network)
+- [ ]  do some KPIs in dune dashboard
