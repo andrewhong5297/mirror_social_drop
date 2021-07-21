@@ -140,7 +140,7 @@ consolidated_score["did_contribute"] = consolidated_score["source"].apply(lambda
 consolidated_score["did_create"] = consolidated_score["created"].apply(lambda x: creator_reward if x > 0 else 0)
 # consolidated_score["is_top200"] = consolidated_score["source"].apply(lambda x: 1 if x in top_200_bw else 0)
 
-consolidated_score["baseRewards"] = (consolidated_score["betweenness"]+1)*\
+consolidated_score["actualAirdrop"] = (consolidated_score["betweenness"]+1)*\
                                             (\
                                              consolidated_score["votes_before"].div(1000)\
                                             + consolidated_score["did_create"]\
@@ -165,32 +165,33 @@ consolidated_score["baseRewards"] = (consolidated_score["betweenness"]+1)*\
 """Finally, the total airdrop including currently held $WRITE tokens"""
 import matplotlib.pyplot as plt
 import seaborn as sns
+import plotly.express as px
+from plotly.offline import plot
 
 consolidated_score["centrality_level"] = ["high" if closeness > 0.33 else "low" for closeness in consolidated_score["closeness"]]
 address_centrality = dict(zip(consolidated_score.source, consolidated_score.centrality_level))
 
-def check_distribution(df, airdropType):
-    df["actualAirdrop"] = df[airdropType]
-    df["votes_after"] = df["actualAirdrop"]*1000
-    for_boxplot = df[["source","votes_before","votes_after"]]
+def check_distribution(df):
+    for_boxplot = df[["source","actualAirdrop","twitter"]]
     for_boxplot.set_index("source",inplace=True)
-    for_boxplot = for_boxplot.melt(ignore_index=False)
-    for_boxplot.columns=["state","votes_allocated"]
     for_boxplot.reset_index(inplace=True)
     for_boxplot["centrality_level"] = for_boxplot["source"].apply(lambda x: address_centrality[x])
     
-    for_boxplot["votes_allocated_log"] = for_boxplot["votes_allocated"].apply(lambda x: np.log(x))
-    for_boxplot["votes_allocated_log"] = for_boxplot["votes_allocated_log"].replace(-np.inf,0)
+    for_boxplot["actualAirdrop_log"] = for_boxplot["actualAirdrop"].apply(lambda x: np.log(x))
+    for_boxplot["actualAirdrop_log"] = for_boxplot["actualAirdrop_log"].replace(-np.inf,0)
     
-    fig, ax = plt.subplots(figsize=(10,10))
-    sns.violinplot(x="state", y="votes_allocated_log", 
-                    hue="centrality_level", split=True,
-                    data=for_boxplot, ax=ax)
-    sns.despine(offset=10, trim=True)
-    ax.set(title="Votes Allocated Before and After {} Airdrop (Logarithmic)".format(airdropType))
-    print("Total tokens distributed: {}".format(sum(consolidated_score[airdropType])))
+    fig = px.box(for_boxplot, x="centrality_level", y="actualAirdrop_log", hover_data=["twitter"])
+    plot(fig,"main_datasets/rewards.html")
 
-check_distribution(consolidated_score,"baseRewards") #weightedTokenRewards
+    # fig, ax = plt.subplots(figsize=(10,10))
+    # sns.boxplot(x="centrality_level", y="actualAirdrop_log", 
+    #                 # hue="centrality_level", split=True,
+    #                 data=for_boxplot, ax=ax)
+    # sns.despine(offset=10, trim=True)
+    # ax.set(title="Airdrop Allocation (Logarithmic)")
+    print("Total tokens distributed: {}".format(sum(consolidated_score["actualAirdrop"])))
+
+check_distribution(consolidated_score)
 
 consolidated_score.to_csv(r'main_datasets\mirror_baseAirdrop.csv')
 
