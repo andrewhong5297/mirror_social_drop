@@ -54,7 +54,6 @@ G = nx.from_pandas_edgelist(consolidated_melt, "source","target",
 
 color_map = []
 for node in G:
-    # print(node)
     if node in top_200_bw:
         color_map.append("red")
     elif node in winners_eth:
@@ -75,7 +74,6 @@ for node in G:
 plt.figure(figsize=(50, 50))
 pos = nx.spring_layout(G)
 nx.draw_networkx_nodes(G, pos, node_color=color_map, node_size=10) #size_map)
-# nx.draw_networkx_labels(G,pos,labels,font_size=7,font_color='b')
 
 for edge in G.edges():
     attributes = G.get_edge_data(edge[0],edge[1])

@@ -92,7 +92,6 @@ consolidated_score["unique_contributed"] = min_max_scaler.fit_transform(consolid
 
 """add in existing votes and other voters"""
 votes_df = pd.read_json(r'main_datasets\mirror_supplied\votingdata.json')
-# votes_before.to_csv(r'main_datasets\votingdata_cleaning.csv')
 votes_before_dict = dict(zip(votes_df["account"].apply(lambda x: x.lower()),votes_df.originalVotingPower))
 
 def assign_old_votes(x):
@@ -110,9 +109,9 @@ for index, row in votes_df.iterrows():
     new_row = {"source":row["account"],"closeness":0,"votes_before":row["originalVotingPower"],"twitter":row["username"]}
     consolidated_score = consolidated_score.append(new_row, ignore_index=True)
 
-"""@todo: manual add of bidder boolean for now, get from dune later and add into preprocessing""" 
-bidders = pd.read_csv(r'main_datasets/mirror_supplied/auctionbidders.json')
-bidders = [bidder.lower() for bidder in bidders.columns]
+"""add of bidder boolean from dune""" 
+bidders = pd.read_csv(r'main_datasets/dune_data/mirror_au_all_bidders.csv')
+bidders = list(bidders.applymap(lambda x: x.replace('\\','0'))["sender"])
 
 def did_bid(x):
     if x in bidders:
@@ -128,7 +127,6 @@ contract_addresses = ['0xff2f509668048d4fde4f40fedab3334ce104a39b','0x612e8126b1
 consolidated_score = consolidated_score[~consolidated_score["source"].isin(contract_addresses)]
 
 """rewards simulations"""
-# top_200_bw = set(consolidated_score.sort_values(by="betweenness", ascending=False)["source"][:200])
 did_contribute = set(consolidated_score[(consolidated_score["CF_contribution"]!=0) | (consolidated_score["ED_purchaseValue"]!=0) 
                      | (consolidated_score["SP_value"]!=0) | (consolidated_score["AU_value"]!=0) | (consolidated_score["did_bid"]!=0)]["source"])
 consolidated_score["total_contributions"] = consolidated_score["CF_contribution"]+consolidated_score["ED_purchaseValue"]+consolidated_score["AU_value"]+consolidated_score["SP_value"]
@@ -138,7 +136,6 @@ contributor_reward = 2.5
 
 consolidated_score["did_contribute"] = consolidated_score["source"].apply(lambda x: contributor_reward if x in did_contribute else 0)
 consolidated_score["did_create"] = consolidated_score["created"].apply(lambda x: creator_reward if x > 0 else 0)
-# consolidated_score["is_top200"] = consolidated_score["source"].apply(lambda x: 1 if x in top_200_bw else 0)
 
 consolidated_score["actualAirdrop"] = (consolidated_score["betweenness"]+1)*\
                                             (\
@@ -146,7 +143,6 @@ consolidated_score["actualAirdrop"] = (consolidated_score["betweenness"]+1)*\
                                             + consolidated_score["did_create"]\
                                             + (consolidated_score["did_contribute"]*consolidated_score["total_contributions"]*consolidated_score["unique_contributed"]).div(10)\
                                             )
-                                    # + consolidated_score["is_top200"]
 
 """Finally, the total airdrop including currently held $WRITE tokens"""
 import matplotlib.pyplot as plt
@@ -154,7 +150,7 @@ import seaborn as sns
 import plotly.express as px
 from plotly.offline import plot
 
-consolidated_score["betweenness_level"] = ["high" if betweenness > 0.33 else "low" for betweenness in consolidated_score["betweenness"]]
+consolidated_score["betweenness_level"] = ["high" if betweenness > 0.05 else "low" for betweenness in consolidated_score["betweenness"]]
 address_betweenness = dict(zip(consolidated_score.source, consolidated_score.betweenness_level))
 
 def check_distribution(df):
