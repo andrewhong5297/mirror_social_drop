@@ -37,6 +37,11 @@ consolidated_melt["color"] = consolidated_melt["variable"].apply(lambda x: color
 consolidated_melt["width"] = consolidated_melt["variable"].apply(lambda x: width_key[x])
 consolidated_melt["alpha"] = consolidated_melt["variable"].apply(lambda x: alpha_key[x])
 
+# #setting rules for node_size, assumes betweenness has been calculated already
+# cs = pd.read_csv(r'main_datasets\mirror_graph_score_ready.csv')
+# top_200_bw = set(cs.sort_values(by="betweenness", ascending=False)["source"][:200])
+top_200_bw = {}
+
 #setting rules for color_map 
 winners = pd.read_json(r'main_datasets\mirror_supplied\votingdata.json')
 winners = list(set(winners[winners.hasPublication==True]["username"]))
@@ -50,15 +55,26 @@ G = nx.from_pandas_edgelist(consolidated_melt, "source","target",
 color_map = []
 for node in G:
     # print(node)
-    if node in winners_eth:
+    if node in top_200_bw:
+        color_map.append("red")
+    elif node in winners_eth:
         color_map.append("gold")
     else:
         color_map.append("indigo")
+        
+# size_map = []
+# for node in G:
+#     # print(node)
+#     if node in top_200_bw:
+#         size_map.append(30)
+#     else:
+#         size_map.append(10)
+        
 # nx.write_gexf(G , r'main_datasets/social_graph.gexf')
 
 plt.figure(figsize=(50, 50))
 pos = nx.spring_layout(G)
-nx.draw_networkx_nodes(G, pos, node_color=color_map, node_size=10)
+nx.draw_networkx_nodes(G, pos, node_color=color_map, node_size=10) #size_map)
 # nx.draw_networkx_labels(G,pos,labels,font_size=7,font_color='b')
 
 for edge in G.edges():
@@ -69,15 +85,12 @@ for edge in G.edges():
         alpha=attributes[next(iter(attributes))]["alpha"],
         edge_color=attributes[next(iter(attributes))]["color"])
 
-plt.rcParams['axes.facecolor'] = 'xkcd:salmon'
+# plt.rcParams['axes.facecolor'] = 'xkcd:salmon'
 plt.axis('off')
 plt.show() 
 
 """community graph analysis (uncomment only when you want to run the algos)"""
-print("calculating closeness and betweenness...")
-"""closeness"""
-# closeness_h = nx.algorithms.centrality.harmonic_centrality(G) #not normalized
-closeness_c = nx.algorithms.centrality.closeness_centrality(G) #normalized, uses WF formula
+print("calculating betweenness...")
 
 """betweenness"""
 # Generate connected components and select the largest:
@@ -94,12 +107,6 @@ def try_handle(x):
     except:
         pass
     
-def try_closeness(x):
-    try:
-        return closeness_c[x]
-    except:
-        return 1
-
 def try_betweenness(x, betweenness):
     try:
         return betweenness[x]
@@ -111,7 +118,6 @@ consolidated_score = consolidated.reset_index().pivot_table(index=["source"],val
 consolidated_score["twitter"] = consolidated_score["source"].apply(lambda x: try_handle(x))
 consolidated_score["hasVoted"] = consolidated_score["twitter"].apply(lambda x: 1 if x != np.nan else 0)
 
-consolidated_score["closeness"] = consolidated_score["source"].apply(lambda x: try_closeness(x))
 consolidated_score["betweenness"] = consolidated_score["source"].apply(lambda x: try_betweenness(x, betweenness_c))
 consolidated_score["betweenness"] = consolidated_score["betweenness"] - min(consolidated_score["betweenness"]) #must be base 0
 

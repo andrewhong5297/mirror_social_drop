@@ -133,8 +133,8 @@ did_contribute = set(consolidated_score[(consolidated_score["CF_contribution"]!=
                      | (consolidated_score["SP_value"]!=0) | (consolidated_score["AU_value"]!=0) | (consolidated_score["did_bid"]!=0)]["source"])
 consolidated_score["total_contributions"] = consolidated_score["CF_contribution"]+consolidated_score["ED_purchaseValue"]+consolidated_score["AU_value"]+consolidated_score["SP_value"]
 
-creator_reward = 1
-contributor_reward = 2
+creator_reward = 1.5
+contributor_reward = 2.5
 
 consolidated_score["did_contribute"] = consolidated_score["source"].apply(lambda x: contributor_reward if x in did_contribute else 0)
 consolidated_score["did_create"] = consolidated_score["created"].apply(lambda x: creator_reward if x > 0 else 0)
@@ -148,44 +148,30 @@ consolidated_score["actualAirdrop"] = (consolidated_score["betweenness"]+1)*\
                                             )
                                     # + consolidated_score["is_top200"]
 
-# def calculate_weighted_rewards(df,a,b,c,d):
-#     #this function is explained in the airdrop proposal
-#     # changed uniqueness to betweenness, it helps cap it a little but doesn't change distribution.
-#     rewardColumn = (1/a*df["closeness"])*((df["betweenness"]*b*df["created"])+\
-#                                         (df["unique_contributed"]*df["total_contributions"])\
-#                                             +c*df["hasVoted"]*1)\
-#                     /d + df["votes_before"].div(1000)
-#     return rewardColumn
-
-# a_range = np.arange(0.1,1,0.01) #spread of rewards gets thinner as this increases (constant in front of inverse centrality)
-# #can we store all results and then boxplot? 
-
-# consolidated_score["weightedTokenRewards"]= calculate_weighted_rewards(consolidated_score,a=0.5,b=10,c=0.5,d=1)
-
 """Finally, the total airdrop including currently held $WRITE tokens"""
 import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
 from plotly.offline import plot
 
-consolidated_score["centrality_level"] = ["high" if closeness > 0.33 else "low" for closeness in consolidated_score["closeness"]]
-address_centrality = dict(zip(consolidated_score.source, consolidated_score.centrality_level))
+consolidated_score["betweenness_level"] = ["high" if betweenness > 0.33 else "low" for betweenness in consolidated_score["betweenness"]]
+address_betweenness = dict(zip(consolidated_score.source, consolidated_score.betweenness_level))
 
 def check_distribution(df):
     for_boxplot = df[["source","actualAirdrop","twitter"]]
     for_boxplot.set_index("source",inplace=True)
     for_boxplot.reset_index(inplace=True)
-    for_boxplot["centrality_level"] = for_boxplot["source"].apply(lambda x: address_centrality[x])
+    for_boxplot["betweenness_level"] = for_boxplot["source"].apply(lambda x: address_betweenness[x])
     
     for_boxplot["actualAirdrop_log"] = for_boxplot["actualAirdrop"].apply(lambda x: np.log(x))
     for_boxplot["actualAirdrop_log"] = for_boxplot["actualAirdrop_log"].replace(-np.inf,0)
     
-    fig = px.box(for_boxplot, x="centrality_level", y="actualAirdrop_log", hover_data=["twitter"])
+    fig = px.box(for_boxplot, x="betweenness_level", y="actualAirdrop_log", hover_data=["twitter"])
     plot(fig,"main_datasets/rewards.html")
 
     # fig, ax = plt.subplots(figsize=(10,10))
-    # sns.boxplot(x="centrality_level", y="actualAirdrop_log", 
-    #                 # hue="centrality_level", split=True,
+    # sns.boxplot(x="betweenness_level", y="actualAirdrop_log", 
+    #                 # hue="betweenness_level", split=True,
     #                 data=for_boxplot, ax=ax)
     # sns.despine(offset=10, trim=True)
     # ax.set(title="Airdrop Allocation (Logarithmic)")
