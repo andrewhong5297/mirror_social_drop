@@ -106,15 +106,13 @@ au_graph = au.pivot_table(index=["buyer","creator"],values="AU_value",aggfunc="s
 au_graph.index.names=["source","target"]
 au_graph.to_csv(r'main_datasets/graph_data/auctions_graph.csv')
 
-#add in auction bidder boolean (1 0)
-
 ##add it all to consolidated df
 consolidated = consolidated.join(cf_graph,how="outer")
 consolidated = consolidated.join(ed_graph,how="outer")
 consolidated = consolidated.join(sp_graph,how="outer")
 consolidated = consolidated.join(au_graph,how="outer")
 
-"""add in twitter data, this runs slowly lol"""
+"""add in twitter data, this runs slowly lol. this should work with every single user"""
 print("getting twitter graph...")
 # #do we need to get the matrix of who has talked to who (co-occurence matrix)
 # from scipy.sparse import csr_matrix

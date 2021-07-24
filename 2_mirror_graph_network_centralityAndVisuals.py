@@ -60,32 +60,32 @@ for node in G:
         color_map.append("gold")
     else:
         color_map.append("indigo")
+
+# # size_map = []
+# # for node in G:
+# #     # print(node)
+# #     if node in top_200_bw:
+# #         size_map.append(30)
+# #     else:
+# #         size_map.append(10)
         
-# size_map = []
-# for node in G:
-#     # print(node)
-#     if node in top_200_bw:
-#         size_map.append(30)
-#     else:
-#         size_map.append(10)
-        
-# nx.write_gexf(G , r'main_datasets/social_graph.gexf')
+# # nx.write_gexf(G , r'main_datasets/social_graph.gexf')
 
-plt.figure(figsize=(50, 50))
-pos = nx.spring_layout(G)
-nx.draw_networkx_nodes(G, pos, node_color=color_map, node_size=10) #size_map)
+# plt.figure(figsize=(50, 50))
+# pos = nx.spring_layout(G)
+# nx.draw_networkx_nodes(G, pos, node_color=color_map, node_size=10) #size_map)
 
-for edge in G.edges():
-    attributes = G.get_edge_data(edge[0],edge[1])
-    nx.draw_networkx_edges(G, pos, connectionstyle='arc3, rad = 0.4',
-        edgelist=[edge],
-        width=attributes[next(iter(attributes))]["width"],
-        alpha=attributes[next(iter(attributes))]["alpha"],
-        edge_color=attributes[next(iter(attributes))]["color"])
+# for edge in G.edges():
+#     attributes = G.get_edge_data(edge[0],edge[1])
+#     nx.draw_networkx_edges(G, pos, connectionstyle='arc3, rad = 0.4',
+#         edgelist=[edge],
+#         width=attributes[next(iter(attributes))]["width"],
+#         alpha=attributes[next(iter(attributes))]["alpha"],
+#         edge_color=attributes[next(iter(attributes))]["color"])
 
-# plt.rcParams['axes.facecolor'] = 'xkcd:salmon'
-plt.axis('off')
-plt.show() 
+# # plt.rcParams['axes.facecolor'] = 'xkcd:salmon'
+# plt.axis('off')
+# plt.show() 
 
 """community graph analysis (uncomment only when you want to run the algos)"""
 print("calculating betweenness...")
@@ -95,7 +95,7 @@ print("calculating betweenness...")
 largest_component = max(nx.connected_components(G), key=len)
 # Create a subgraph of G consisting only of this component:
 G2 = G.subgraph(largest_component)
-betweenness_c= nx.algorithms.centrality.betweenness_centrality_source(G2) 
+betweenness_c= nx.algorithms.centrality.betweenness_centrality_source(G2) #, weight="value") 
 
 """putting into df"""
 eth_handle = dict(zip(full_addy.address,full_addy.username))
@@ -114,7 +114,6 @@ def try_betweenness(x, betweenness):
 consolidated_score = consolidated.reset_index().pivot_table(index=["source"],values=["Votes","CF_contribution","ED_purchaseValue","SP_value","AU_value","mentions"]
                                                             ,aggfunc="sum").reset_index()
 consolidated_score["twitter"] = consolidated_score["source"].apply(lambda x: try_handle(x))
-consolidated_score["hasVoted"] = consolidated_score["twitter"].apply(lambda x: 1 if x != np.nan else 0)
 
 consolidated_score["betweenness"] = consolidated_score["source"].apply(lambda x: try_betweenness(x, betweenness_c))
 consolidated_score["betweenness"] = consolidated_score["betweenness"] - min(consolidated_score["betweenness"]) #must be base 0

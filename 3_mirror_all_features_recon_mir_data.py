@@ -106,40 +106,41 @@ consolidated_score["votes_before"] = consolidated_score["source"].apply(lambda x
 votes_df["account"] = votes_df["account"].apply(lambda x: x.lower())
 votes_df = votes_df[~votes_df["account"].isin(consolidated_score["source"])]
 for index, row in votes_df.iterrows():
-    new_row = {"source":row["account"],"closeness":0,"votes_before":row["originalVotingPower"],"twitter":row["username"]}
+    new_row = {"source":row["account"],"votes_before":row["originalVotingPower"],"twitter":row["username"]}
     consolidated_score = consolidated_score.append(new_row, ignore_index=True)
 
-"""add of bidder boolean from dune""" 
-bidders = pd.read_csv(r'main_datasets/dune_data/mirror_au_all_bidders.csv')
-bidders = list(bidders.applymap(lambda x: x.replace('\\','0'))["sender"])
+# """add of bidder boolean from dune""" 
+# bidders = pd.read_csv(r'main_datasets/dune_data/mirror_au_all_bidders.csv')
+# bidders = list(bidders.applymap(lambda x: x.replace('\\','0'))["sender"])
 
-def did_bid(x):
-    if x in bidders:
-        return 1
-    else:
-        return 0
+# def did_bid(x):
+#     if x in bidders:
+#         return 1
+#     else:
+#         return 0
 
-consolidated_score["did_bid"] = consolidated_score["source"].apply(lambda x: did_bid(x))
+# consolidated_score["did_bid"] = consolidated_score["source"].apply(lambda x: did_bid(x))
+
+"""rewards simulations"""
 consolidated_score.fillna(0,inplace=True)
 
 contract_addresses = ['0xff2f509668048d4fde4f40fedab3334ce104a39b','0x612e8126b11f7d2596be800278ecf2515c85aa5b','0x60e3fb18828a348e5bbb66fa06371933370c0209']
 
 consolidated_score = consolidated_score[~consolidated_score["source"].isin(contract_addresses)]
 
-"""rewards simulations"""
-did_contribute = set(consolidated_score[(consolidated_score["CF_contribution"]!=0) | (consolidated_score["ED_purchaseValue"]!=0) 
-                     | (consolidated_score["SP_value"]!=0) | (consolidated_score["AU_value"]!=0) | (consolidated_score["did_bid"]!=0)]["source"])
+# did_contribute = set(consolidated_score[(consolidated_score["CF_contribution"]!=0) | (consolidated_score["ED_purchaseValue"]!=0) 
+#                      | (consolidated_score["SP_value"]!=0) | (consolidated_score["AU_value"]!=0) | (consolidated_score["did_bid"]!=0)]["source"])
 consolidated_score["total_contributions"] = consolidated_score["CF_contribution"]+consolidated_score["ED_purchaseValue"]+consolidated_score["AU_value"]+consolidated_score["SP_value"]
 
-creator_reward = 1.5
-contributor_reward = 2.5
+creator_reward = 1
+contributor_reward = 2
 
-consolidated_score["did_contribute"] = consolidated_score["source"].apply(lambda x: contributor_reward if x in did_contribute else 0)
+# consolidated_score["did_contribute"] = consolidated_score["source"].apply(lambda x: contributor_reward if x in did_contribute else 0)
 consolidated_score["did_create"] = consolidated_score["created"].apply(lambda x: creator_reward if x > 0 else 0)
 
-consolidated_score["actualAirdrop"] = (consolidated_score["betweenness"]+1)*\
+consolidated_score["actual_airdrop"] = (consolidated_score["betweenness"]+1)*\
                                             (\
-                                             2*consolidated_score["votes_before"].div(1000)\
+                                             3*consolidated_score["votes_before"].div(1000)\
                                             + consolidated_score["did_create"]\
                                             + (consolidated_score["did_contribute"]*consolidated_score["total_contributions"]*consolidated_score["unique_contributed"]).div(10)\
                                             )
@@ -154,27 +155,28 @@ consolidated_score["betweenness_level"] = ["high" if betweenness > 0.05 else "lo
 address_betweenness = dict(zip(consolidated_score.source, consolidated_score.betweenness_level))
 
 def check_distribution(df):
-    # for_boxplot = df[["source","actualAirdrop","twitter"]]
+    # for_boxplot = df[["source","actual_airdrop","twitter"]]
     # for_boxplot.set_index("source",inplace=True)
     # for_boxplot.reset_index(inplace=True)
     # for_boxplot["betweenness_level"] = for_boxplot["source"].apply(lambda x: address_betweenness[x])
     
-    # for_boxplot["actualAirdrop_log"] = for_boxplot["actualAirdrop"].apply(lambda x: np.log(x))
-    # for_boxplot["actualAirdrop_log"] = for_boxplot["actualAirdrop_log"].replace(-np.inf,0)
+    # for_boxplot["actual_airdrop_log"] = for_boxplot["actual_airdrop"].apply(lambda x: np.log(x))
+    # for_boxplot["actual_airdrop_log"] = for_boxplot["actual_airdrop_log"].replace(-np.inf,0)
     
-    # # fig = px.box(for_boxplot, x="betweenness_level", y="actualAirdrop_log", hover_data=["twitter"])
+    # # fig = px.box(for_boxplot, x="betweenness_level", y="actual_airdrop_log", hover_data=["twitter"])
     # # plot(fig,"main_datasets/rewards.html")
 
     # fig, ax = plt.subplots(figsize=(10,10))
-    # sns.boxplot(x="betweenness_level", y="actualAirdrop_log", 
+    # sns.boxplot(x="betweenness_level", y="actual_airdrop_log", 
     #                 # hue="betweenness_level", split=True,
     #                 data=for_boxplot, ax=ax)
     # sns.despine(offset=10, trim=True)
     # ax.set(title="Airdrop Allocation (Logarithmic)")
-    print("Total tokens distributed: {}".format(sum(consolidated_score["actualAirdrop"])))
+    print("Total tokens distributed: {}".format(sum(consolidated_score["actual_airdrop"])))
 
 check_distribution(consolidated_score)
 
 consolidated_score.to_csv(r'main_datasets\mirror_baseAirdrop.csv')
-
+#maybe this should go into a datapane
+consolidated_score.drop(columns="twitter").to_csv(r'main_datasets\mirror_finalAirdrop_cleaned.csv')
 
