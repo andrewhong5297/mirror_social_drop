@@ -109,17 +109,17 @@ for index, row in votes_df.iterrows():
     new_row = {"source":row["account"],"votes_before":row["originalVotingPower"],"twitter":row["username"]}
     consolidated_score = consolidated_score.append(new_row, ignore_index=True)
 
-# """add of bidder boolean from dune""" 
-# bidders = pd.read_csv(r'main_datasets/dune_data/mirror_au_all_bidders.csv')
-# bidders = list(bidders.applymap(lambda x: x.replace('\\','0'))["sender"])
+"""add of bidder boolean from dune""" 
+bidders = pd.read_csv(r'main_datasets/dune_data/mirror_au_all_bidders.csv')
+bidders = list(bidders.applymap(lambda x: x.replace('\\','0'))["sender"])
 
-# def did_bid(x):
-#     if x in bidders:
-#         return 1
-#     else:
-#         return 0
+def did_bid(x):
+    if x in bidders:
+        return 1
+    else:
+        return 0
 
-# consolidated_score["did_bid"] = consolidated_score["source"].apply(lambda x: did_bid(x))
+consolidated_score["did_bid"] = consolidated_score["source"].apply(lambda x: did_bid(x))
 
 """rewards simulations"""
 consolidated_score.fillna(0,inplace=True)
@@ -128,19 +128,19 @@ contract_addresses = ['0xff2f509668048d4fde4f40fedab3334ce104a39b','0x612e8126b1
 
 consolidated_score = consolidated_score[~consolidated_score["source"].isin(contract_addresses)]
 
-# did_contribute = set(consolidated_score[(consolidated_score["CF_contribution"]!=0) | (consolidated_score["ED_purchaseValue"]!=0) 
-#                      | (consolidated_score["SP_value"]!=0) | (consolidated_score["AU_value"]!=0) | (consolidated_score["did_bid"]!=0)]["source"])
+did_contribute = set(consolidated_score[(consolidated_score["CF_contribution"]!=0) | (consolidated_score["ED_purchaseValue"]!=0) 
+                      | (consolidated_score["SP_value"]!=0) | (consolidated_score["AU_value"]!=0) | (consolidated_score["did_bid"]!=0)]["source"])
 consolidated_score["total_contributions"] = consolidated_score["CF_contribution"]+consolidated_score["ED_purchaseValue"]+consolidated_score["AU_value"]+consolidated_score["SP_value"]
 
 creator_reward = 1
 contributor_reward = 2
 
-# consolidated_score["did_contribute"] = consolidated_score["source"].apply(lambda x: contributor_reward if x in did_contribute else 0)
+consolidated_score["did_contribute"] = consolidated_score["source"].apply(lambda x: contributor_reward if x in did_contribute else 0)
 consolidated_score["did_create"] = consolidated_score["created"].apply(lambda x: creator_reward if x > 0 else 0)
 
-consolidated_score["actual_airdrop"] = (consolidated_score["betweenness"]+1)*\
+consolidated_score["actual_airdrop"] = 2*(consolidated_score["betweenness"]+1)*\
                                             (\
-                                             3*consolidated_score["votes_before"].div(1000)\
+                                             consolidated_score["votes_before"].div(1000)\
                                             + consolidated_score["did_create"]\
                                             + (consolidated_score["did_contribute"]*consolidated_score["total_contributions"]*consolidated_score["unique_contributed"]).div(10)\
                                             )

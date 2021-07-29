@@ -12,7 +12,7 @@ from collections import Counter
 from datetime import datetime
 from tqdm import tqdm
 
-#larger 2130 user list, extend to the end of the users winners list just for ordered scraping purposes
+#refactor this later for if more usernames are added
 all_users = pd.read_json(r'main_datasets\mirror_supplied\votingdata.json')
 active_users = pd.read_csv(r'main_datasets\graph_data\voting_graph_full.csv', index_col=0)
 users_already_scraped = list(set(active_users["Voter"].append(active_users["Voted"])))

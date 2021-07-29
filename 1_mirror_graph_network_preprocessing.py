@@ -40,8 +40,6 @@ votes[["Voter","Voted"]] = votes[["Voter","Voted"]].applymap(lambda x: handle_et
 
 add in ethereum transaction data to graph network and save file as consolidated
 
-- any removal of QA and overlapping addresses will need to be done in this block
-
 """
 
 consolidated = votes.pivot_table(index=["Voter","Voted"], values="Votes", aggfunc="sum")
@@ -118,6 +116,10 @@ print("getting twitter graph...")
 # from scipy.sparse import csr_matrix
 mdf = pd.read_csv(r'main_datasets\mirror_tw_mentionedby.csv', index_col=0)
 mdf.drop(columns="skipped_user", inplace=True)
+mdf_2 = pd.read_csv(r'main_datasets\mirror_tw_mentionedby_all.csv', index_col=0)
+mdf_2.drop(columns="skipped_user", inplace=True)
+
+mdf = pd.concat([mdf,mdf_2])
 
 twitter_cols = ["source","mentions","target"]
 twitter_graph = pd.DataFrame(columns=twitter_cols)
@@ -126,13 +128,16 @@ all_usernames_in_mirror = list(full_addy.username)
 for column in tqdm(mdf.columns):
     all_mentions = mdf[column]
     all_mentions.dropna(inplace=True)
-    for mention in all_mentions:
-        if mention in all_usernames_in_mirror:
-            new_mention = {"source":handle_eth[column.lower()], "mentions":1,"target":handle_eth[mention.lower()]}
-            twitter_graph = twitter_graph.append(new_mention, ignore_index=True)
+    if column in all_usernames_in_mirror: #remove this later
+        for mention in all_mentions:
+            if (mention in all_usernames_in_mirror) & (column != mention):
+                new_mention = {"source":handle_eth[column.lower()], "mentions":1,"target":handle_eth[mention.lower()]}
+                twitter_graph = twitter_graph.append(new_mention, ignore_index=True)
             
 twitter_graph = twitter_graph.pivot_table(index=["source","target"],values="mentions", aggfunc="sum")
 twitter_graph.to_csv(r'main_datasets/graph_data/twitter_graph.csv')
+
+twitter_graph = pd.read_csv(r'main_datasets/graph_data/twitter_graph.csv', index_col=["source","target"])
 
 consolidated = consolidated.join(twitter_graph,how="outer")
 
