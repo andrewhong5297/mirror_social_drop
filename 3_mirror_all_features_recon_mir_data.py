@@ -16,12 +16,20 @@ start recon for calcuating rewards
 """
 consolidated_score = pd.read_csv(r'main_datasets\mirror_graph_score_ready.csv', index_col=0)
 
-"""calculate created count"""
+"""calculate created count (hopefully this can be replaced with Dune too after factory decoding)"""
+all_creations = pd.read_csv(r'main_datasets\dune_data\mirror_all_creations.csv')
+all_creations["creator"] = all_creations["creator"].apply(lambda x: x.replace("\\","0"))
+
 #entries created
 ent = pd.read_csv(r'main_datasets\mirror_supplied\Entries_created.csv')
 ent.address = ent.address.apply(lambda x: x.lower())
 created_ent = dict(zip(ent.address,ent.num_entries))
 
+#check difference in unique addresses with dune method. missing may be because of crowdfund editions? but that's a double count? not sure what crowdfunds are missing.
+cf_test = all_creations[all_creations["product_type"]=="crowdfund"].pivot_table(index="creator",values="product_type",aggfunc="count") #missing two?
+ed_test = all_creations[all_creations["product_type"]=="editions"].pivot_table(index="creator",values="product_type",aggfunc="count") #missing 7?
+
+#manual data method
 cf = pd.read_csv(r'main_datasets\mirror_supplied\Crowdfunds.csv')
 cf["creator"] = cf["creator"].apply(lambda x: x.lower())
 created_cf = cf.pivot_table(index="creator",values="contract_address",aggfunc=lambda x: len(x.unique()))
@@ -32,15 +40,11 @@ ed["creator"] = ed["creator"].apply(lambda x: x.lower())
 created_ed = ed.pivot_table(index="creator",values="edition_name",aggfunc=lambda x: len(x.unique()))
 created_ed = dict(zip(created_ed.index,created_ed.edition_name))
 
-au = pd.read_csv(r'main_datasets\mirror_supplied\ReserveAuctions.csv')
-au["creator"] = au["creator"].apply(lambda x: x.lower())
-created_au = au.pivot_table(index="creator",values="token_id",aggfunc=lambda x: len(x.unique()))
-created_au = dict(zip(created_au.index,created_au.token_id))
+created_au = all_creations[all_creations["product_type"]=="reserve_auctions"].pivot_table(index="creator",values="product_type",aggfunc="count") #extra 2 (seems right)
+created_au = dict(zip(created_au.index,created_au.product_type))
 
-sp = pd.read_csv(r'main_datasets\mirror_supplied\Splits.csv')
-sp["creator"] = sp["creator"].apply(lambda x: x.lower())
-created_sp = sp.pivot_table(index="creator",values="contract_address",aggfunc=lambda x: len(x.unique()))
-created_sp = dict(zip(created_sp.index,created_sp.contract_address))
+created_sp = all_creations[all_creations["product_type"]=="splits"].pivot_table(index="creator",values="product_type",aggfunc="count") #extra 3 (seems right)
+created_sp = dict(zip(created_sp.index,created_sp.product_type))
 
 def count_created(x):
     total = 0
@@ -66,7 +70,7 @@ cf_graph = pd.read_csv(r'main_datasets/graph_data/crowdfunds_graph.csv')
 ed_graph = pd.read_csv(r'main_datasets/graph_data/editions_graph.csv')
 
 #splits
-sp_graph = pd.read_csv(r'main_datasets/graph_data/splits_graph.csv', index_col=0)
+sp_graph = pd.read_csv(r'main_datasets/graph_data/splits_graph.csv')
 
 #auctions
 au_graph = pd.read_csv(r'main_datasets/graph_data/auctions_graph.csv')
@@ -124,6 +128,7 @@ consolidated_score["did_bid"] = consolidated_score["source"].apply(lambda x: did
 """rewards simulations"""
 consolidated_score.fillna(0,inplace=True)
 
+#these filters are still in here cause of splits being from Graeme rather than dune
 contract_addresses = ['0xff2f509668048d4fde4f40fedab3334ce104a39b','0x612e8126b11f7d2596be800278ecf2515c85aa5b','0x60e3fb18828a348e5bbb66fa06371933370c0209']
 
 consolidated_score = consolidated_score[~consolidated_score["source"].isin(contract_addresses)]
@@ -138,7 +143,7 @@ contributor_reward = 2
 consolidated_score["did_contribute"] = consolidated_score["source"].apply(lambda x: contributor_reward if x in did_contribute else 0)
 consolidated_score["did_create"] = consolidated_score["created"].apply(lambda x: creator_reward if x > 0 else 0)
 
-consolidated_score["actual_airdrop"] = 2*(consolidated_score["betweenness"]+1)*\
+consolidated_score["actual_airdrop"] = (100*consolidated_score["betweenness"]+1)*\
                                             (\
                                              consolidated_score["votes_before"].div(1000)\
                                             + consolidated_score["did_create"]\

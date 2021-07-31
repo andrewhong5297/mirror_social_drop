@@ -42,66 +42,52 @@ add in ethereum transaction data to graph network and save file as consolidated
 
 """
 
+graph_all = pd.read_csv(r'main_datasets\dune_data\mirror_all_graph.csv')
+
 consolidated = votes.pivot_table(index=["Voter","Voted"], values="Votes", aggfunc="sum")
 consolidated.index.names=["source","target"]
 
 #crowdfunds
-cf = pd.read_csv(r'main_datasets\dune_data\mirror_cf_all_graph.csv')
+cf = graph_all[graph_all["product_type"]=="crowdfund"]
 
 #3 creators are missing from dune logs for some reason
-missing_creator = {'\\x41ed7d49292b8fbf9b9311c1cb4d6eb877646c58':'0x48A63097E1Ac123b1f5A8bbfFafA4afa8192FaB0', 
+missing_cf_creator = {'\\x41ed7d49292b8fbf9b9311c1cb4d6eb877646c58':'0x48A63097E1Ac123b1f5A8bbfFafA4afa8192FaB0', 
                     '\\xa338f6960d1e8bcde50a8057173229dcaa4428c9':'0xA0Cf798816D4b9b9866b5330EEa46a18382f251e',
                     '\\x94515e4f6fabad73c8bcdd8cd42f0b5c037e2c49': '0xc3268ddb8e38302763ffdc9191fcebd4c948fe1b'}
 
-def fill_missing_creators(x):
+def fill_missing_cf_creators(x):
     try:
-        return missing_creator[x]
+        return missing_cf_creator[x]
     except:
         return x
 
-cf["creator"] = cf["contract_address"].apply(lambda x: fill_missing_creators(x)) 
-cf[["contributor","contract_address","creator"]]=cf[["contributor","contract_address","creator"]].applymap(lambda x: x.replace("\\","0"))
-cf_graph = cf.pivot_table(index=["contributor","creator"],values="contribution",aggfunc="sum")
+cf["creator"] = cf["contract_address"].apply(lambda x: fill_missing_cf_creators(x)) 
+cf[["buyer","contract_address","creator"]]=cf[["buyer","contract_address","creator"]].applymap(lambda x: x.replace("\\","0"))
+cf_graph = cf.pivot_table(index=["buyer","creator"],values="contribution",aggfunc="sum")
 cf_graph.index.names=["source","target"]
 cf_graph.columns=["CF_contribution"]
 cf_graph.to_csv(r'main_datasets/graph_data/crowdfunds_graph.csv')
 
 #editions
-ed = pd.read_csv(r'main_datasets\dune_data\mirror_ed_all_graph.csv') #could join with timestamp too in future, would need more accurate timestamp from mirror supplied data
-ed[["buyer","contract_address","fundingRecipient"]]=ed[["buyer","contract_address","fundingRecipient"]].applymap(lambda x: x.replace("\\","0"))
-ed_creator = pd.read_csv(r'main_datasets\mirror_supplied\Editions.csv')
-ed_creator[["contract_address","creator","fundingRecipient"]] = ed_creator[["contract_address","creator","fundingRecipient"]].applymap(lambda x: x.lower())
-ed_creator = ed_creator.drop_duplicates(subset=["contract_address","creator","fundingRecipient","edition_name"])
-ed_merged = pd.merge(ed,ed_creator, how="left", on=["contract_address","org_quantity","fundingRecipient","org_price"])
-
-ed_graph = ed_merged.pivot_table(index=["buyer","creator"],values="valuebought",aggfunc="sum")
+ed = graph_all[graph_all["product_type"]=="editions"]
+ed_graph = ed.pivot_table(index=["buyer","creator"],values="contribution",aggfunc="sum")
 ed_graph.index.names=["source","target"]
 ed_graph.columns=["ED_purchaseValue"]
 ed_graph.to_csv(r'main_datasets/graph_data/editions_graph.csv')
 
-#splits
-sp = pd.read_json('main_datasets/mirror_supplied/SplitsContributions.json')
-sp.rename(columns={'name':'split_name','address':'contract_address'}, inplace=True)
-sp_creator = pd.read_csv(r'main_datasets\mirror_supplied\Splits.csv')
-sp_creator["creator"] = sp_creator["creator"].apply(lambda x: x.lower())
-sp_merged = pd.merge(sp,sp_creator, how="left",on="contract_address")
-
-graph_cols = ["source","SP_value","target"]
-sp_graph = pd.DataFrame(columns=graph_cols)
-
-for index, row in sp_merged.iterrows():
-    tips = row["contributions"]
-    for tip in tips:
-        new_row = {"source": tip["from"], "SP_value":tip["value"],"target":row["creator"]}
-        sp_graph = sp_graph.append(new_row, ignore_index=True)
+#splits --will have to drop all that are 0 value
+sp = graph_all[graph_all["product_type"]=="splits"]
+sp_graph = sp.pivot_table(index=["buyer","creator"],values="contribution",aggfunc="sum")
+sp_graph.index.names=["source","target"]
+sp_graph.columns=["SP_value"]
 sp_graph.to_csv(r'main_datasets/graph_data/splits_graph.csv')
-sp_graph.set_index(["source","target"],inplace=True)
 
 #auctions
-au = pd.read_csv(r'main_datasets/dune_data/mirror_au_all_graph.csv')
+au = graph_all[graph_all["product_type"]=="reserve_auctions"]
 au[["buyer","creator"]]=au[["buyer","creator"]].applymap(lambda x: x.replace("\\","0"))
-au_graph = au.pivot_table(index=["buyer","creator"],values="AU_value",aggfunc="sum")
+au_graph = au.pivot_table(index=["buyer","creator"],values="contribution",aggfunc="sum")
 au_graph.index.names=["source","target"]
+au_graph.columns=["AU_value"]
 au_graph.to_csv(r'main_datasets/graph_data/auctions_graph.csv')
 
 ##add it all to consolidated df
@@ -111,31 +97,31 @@ consolidated = consolidated.join(sp_graph,how="outer")
 consolidated = consolidated.join(au_graph,how="outer")
 
 """add in twitter data, this runs slowly lol. this should work with every single user"""
-print("getting twitter graph...")
-# #do we need to get the matrix of who has talked to who (co-occurence matrix)
-# from scipy.sparse import csr_matrix
-mdf = pd.read_csv(r'main_datasets\mirror_tw_mentionedby.csv', index_col=0)
-mdf.drop(columns="skipped_user", inplace=True)
-mdf_2 = pd.read_csv(r'main_datasets\mirror_tw_mentionedby_all.csv', index_col=0)
-mdf_2.drop(columns="skipped_user", inplace=True)
+# print("getting twitter graph...")
+# # #do we need to get the matrix of who has talked to who (co-occurence matrix)
+# # from scipy.sparse import csr_matrix
+# mdf = pd.read_csv(r'main_datasets\mirror_tw_mentionedby.csv', index_col=0)
+# mdf.drop(columns="skipped_user", inplace=True)
+# mdf_2 = pd.read_csv(r'main_datasets\mirror_tw_mentionedby_all.csv', index_col=0)
+# mdf_2.drop(columns="skipped_user", inplace=True)
 
-mdf = pd.concat([mdf,mdf_2])
+# mdf = pd.concat([mdf,mdf_2])
 
-twitter_cols = ["source","mentions","target"]
-twitter_graph = pd.DataFrame(columns=twitter_cols)
-all_usernames_in_mirror = list(full_addy.username)
+# twitter_cols = ["source","mentions","target"]
+# twitter_graph = pd.DataFrame(columns=twitter_cols)
+# all_usernames_in_mirror = list(full_addy.username)
 
-for column in tqdm(mdf.columns):
-    all_mentions = mdf[column]
-    all_mentions.dropna(inplace=True)
-    if column in all_usernames_in_mirror: #remove this later
-        for mention in all_mentions:
-            if (mention in all_usernames_in_mirror) & (column != mention):
-                new_mention = {"source":handle_eth[column.lower()], "mentions":1,"target":handle_eth[mention.lower()]}
-                twitter_graph = twitter_graph.append(new_mention, ignore_index=True)
+# for column in tqdm(mdf.columns):
+#     all_mentions = mdf[column]
+#     all_mentions.dropna(inplace=True)
+#     if column in all_usernames_in_mirror: #remove this later
+#         for mention in all_mentions:
+#             if (mention in all_usernames_in_mirror) & (column != mention):
+#                 new_mention = {"source":handle_eth[column.lower()], "mentions":1,"target":handle_eth[mention.lower()]}
+#                 twitter_graph = twitter_graph.append(new_mention, ignore_index=True)
             
-twitter_graph = twitter_graph.pivot_table(index=["source","target"],values="mentions", aggfunc="sum")
-twitter_graph.to_csv(r'main_datasets/graph_data/twitter_graph.csv')
+# twitter_graph = twitter_graph.pivot_table(index=["source","target"],values="mentions", aggfunc="sum")
+# twitter_graph.to_csv(r'main_datasets/graph_data/twitter_graph.csv')
 
 twitter_graph = pd.read_csv(r'main_datasets/graph_data/twitter_graph.csv', index_col=["source","target"])
 
