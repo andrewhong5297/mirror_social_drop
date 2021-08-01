@@ -40,6 +40,14 @@ ed["creator"] = ed["creator"].apply(lambda x: x.lower())
 created_ed = ed.pivot_table(index="creator",values="edition_name",aggfunc=lambda x: len(x.unique()))
 created_ed = dict(zip(created_ed.index,created_ed.edition_name))
 
+###TEMP reconciling###
+ed_temp = created_ed.reset_index()
+ed_missing_dune = ed_temp[~ed_temp["creator"].isin(list(set(ed_test.reset_index()["creator"])))]
+
+cf_temp = created_cf.reset_index()
+cf_missing_dune = cf_temp[~cf_temp["creator"].isin(list(set(cf_test.reset_index()["creator"])))]
+
+###these are fine
 created_au = all_creations[all_creations["product_type"]=="reserve_auctions"].pivot_table(index="creator",values="product_type",aggfunc="count") #extra 2 (seems right)
 created_au = dict(zip(created_au.index,created_au.product_type))
 
