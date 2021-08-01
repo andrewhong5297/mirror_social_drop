@@ -14,7 +14,7 @@ from sklearn import preprocessing
 start recon for calcuating rewards
 
 """
-consolidated_score = pd.read_csv(r'main_datasets\mirror_graph_score_ready.csv', index_col=0)
+consolidated_score = pd.read_csv(r'main_datasets\mirror_graph_score_ready_weighted.csv', index_col=0)
 
 """calculate created count (hopefully this can be replaced with Dune too after factory decoding)"""
 all_creations = pd.read_csv(r'main_datasets\dune_data\mirror_all_creations.csv')
@@ -181,7 +181,7 @@ def check_distribution(df):
 
 check_distribution(consolidated_score)
 
-consolidated_score.to_csv(r'main_datasets\mirror_baseAirdrop.csv')
+consolidated_score.to_csv(r'main_datasets\mirror_baseAirdrop_w.csv')
 #maybe this should go into a datapane
-consolidated_score.drop(columns="twitter").to_csv(r'main_datasets\mirror_finalAirdrop_cleaned.csv')
+consolidated_score.drop(columns="twitter").to_csv(r'main_datasets\mirror_finalAirdrop_cleaned_w.csv')
 

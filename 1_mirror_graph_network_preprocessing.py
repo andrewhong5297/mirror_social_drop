@@ -25,6 +25,7 @@ print("starting preprocessing...")
 # vote_graph.to_csv(r'main_datasets/graph_data/voting_graph_full.csv')
 
 votes = pd.read_csv(r'main_datasets/graph_data/voting_graph_full.csv', index_col=0)
+votes = votes[votes["Votes"]!=0] #seems like some error in the json file
 #len(set(df["Voter"].append(df["Voted"]))) 2130 nodes total
 votes = votes[votes["Voter"]!=votes["Voted"]] #remove those who voted for self
 
@@ -43,6 +44,7 @@ add in ethereum transaction data to graph network and save file as consolidated
 """
 
 graph_all = pd.read_csv(r'main_datasets\dune_data\mirror_all_graph.csv')
+graph_all = graph_all[graph_all["contribution"]!=0] #filter this out from query later
 
 consolidated = votes.pivot_table(index=["Voter","Voted"], values="Votes", aggfunc="sum")
 consolidated.index.names=["source","target"]

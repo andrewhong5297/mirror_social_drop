@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Jul 16 18:15:56 2021
+Created on Sat Jul 31 18:15:56 2021
 
 @author: Andrew
 
@@ -24,24 +24,55 @@ full_addy.username = full_addy.username.apply(lambda x: x.lower())
 handle_eth = dict(zip(full_addy.username,full_addy.address))
 votes[["Voter","Voted"]] = votes[["Voter","Voted"]].applymap(lambda x: handle_eth[x.lower()])
 
-"""plots"""
+"""weighting edges into single graph"""
 consolidated = pd.read_csv(r'main_datasets/mirror_graph_processed.csv', index_col=["source","target"])
+consolidated.fillna(0, inplace=True)
 
+#weight by total mentions given (is there any way to do this without a pivot/join?)
+mentions_pivot = consolidated.reset_index().pivot_table(index="source",values="mentions",aggfunc="sum")
+mentions_pivot.columns=["total_mentions"]
+consolidated = pd.merge(consolidated.reset_index(),mentions_pivot.reset_index(),how="left",on="source").set_index(["source","target"])
+
+#weight by total contributions (need a total calc)
+contributions_pivot = consolidated.reset_index().pivot_table(index="source",
+                                                        values=["CF_contribution","ED_purchaseValue","SP_value","AU_value"]
+                                                        ,aggfunc="sum")
+contributions_pivot.columns=["AU_total","CF_total","ED_total","SP_total"]
+consolidated = pd.merge(consolidated.reset_index(),contributions_pivot.reset_index(),how="left",on="source").set_index(["source","target"])
+
+#weight by total votes given (total calc)
+votes_pivot = consolidated.reset_index().pivot_table(index="source",values="Votes",aggfunc="sum")
+votes_pivot.columns=["total_votes"]
+consolidated = pd.merge(consolidated.reset_index(),votes_pivot.reset_index(),how="left",on="source").set_index(["source","target"])
+
+###normalize all
+consolidated["mentions2"] = consolidated["mentions"].div(consolidated["total_mentions"])
+consolidated["Votes2"] = consolidated["Votes"].div(consolidated["total_votes"])
+consolidated["CF_contribution2"] = consolidated["CF_contribution"].div(consolidated["CF_total"])
+consolidated["ED_purchaseValue2"] = consolidated["ED_purchaseValue"].div(consolidated["ED_total"])
+consolidated["SP_value2"] = consolidated["SP_value"].div(consolidated["SP_total"])
+consolidated["AU_value2"] = consolidated["AU_value"].div(consolidated["AU_total"])
+
+consolidated.replace(np.inf, 0, inplace=True)
+consolidated.fillna(0,inplace=True)
+
+#weighted edge multiples should add up to a maximum of 10
+#this might also need to be weighted by total... so normalized first? 
+consolidated["weighted_edge"]=30*consolidated["mentions2"] \
+                                + 30*consolidated["Votes2"] \
+                                + 10*consolidated["CF_contribution2"] \
+                                + 10*consolidated["ED_purchaseValue2"] \
+                                + 10*consolidated["SP_value2"] \
+                                + 10*consolidated["AU_value2"]
+
+consolidated = consolidated[~consolidated.eq(0).all(1)] 
+consolidated = consolidated.drop(columns=["CF_total","ED_total","SP_total","AU_total","total_votes","total_mentions"])
+consolidated = consolidated.drop(columns=["CF_contribution2","ED_purchaseValue2","SP_value2","AU_value2","Votes2","mentions2"])
+
+"""plots"""
 print("plotting graph...")
-consolidated_melt = consolidated.dropna(subset=["Votes","CF_contribution","ED_purchaseValue","SP_value","AU_value"], how="all").melt(ignore_index=False).dropna() #drop those with just twitter mentions, for art purposes
-consolidated_melt.reset_index(inplace=True)
-# consolidated_melt = consolidated_melt[consolidated_melt["variable"]=="Votes"] #for eselecting only one to plot
-
-color_key = {"Votes":"#993358","mentions":"#D86044","CF_contribution":"#DC866F","ED_purchaseValue":"#F3A64E","SP_value":"#F3A64E","AU_value":"#F3A64E"}
-width_key = {"Votes":1,"mentions":1.5,"CF_contribution":2,"ED_purchaseValue":2,"SP_value":2,"AU_value":2}
-alpha_key = {"Votes":1.0,"mentions":0.6,"CF_contribution":0.3,"ED_purchaseValue":0.3,"SP_value":0.3,"AU_value":0.3}
-
-consolidated_melt["color"] = consolidated_melt["variable"].apply(lambda x: color_key[x])
-consolidated_melt["width"] = consolidated_melt["variable"].apply(lambda x: width_key[x])
-consolidated_melt["alpha"] = consolidated_melt["variable"].apply(lambda x: alpha_key[x])
-
 #setting rules for node_size, assumes betweenness has been calculated already
-# cs = pd.read_csv(r'main_datasets\mirror_graph_score_ready.csv')
+# cs = pd.read_csv(r'main_datasets\mirror_graph_score_ready_weighted.csv')
 # top_300_bw = set(cs.sort_values(by="betweenness", ascending=False)["source"][:300])
 top_300_bw = {}
 
@@ -50,10 +81,8 @@ winners = pd.read_json(r'main_datasets\mirror_supplied\votingdata.json')
 winners = list(set(winners[winners.hasPublication==True]["username"]))
 winners_eth = [handle_eth[winner.lower()] for winner in winners]
 
-G = nx.from_pandas_edgelist(consolidated_melt, "source","target", 
-                            edge_key="variable", 
-                            edge_attr=["value","color","width","alpha"],
-                            create_using=nx.MultiGraph()) #digraph looks weird af
+G = nx.from_pandas_edgelist(consolidated.reset_index(), edge_attr=["weighted_edge"],
+                                   create_using=nx.DiGraph())
 
 # color_map = []
 # for node in G:
@@ -74,34 +103,23 @@ G = nx.from_pandas_edgelist(consolidated_melt, "source","target",
         
 # # nx.write_gexf(G , r'main_datasets/social_graph.gexf')
 
-# i=0
-# while i<10:
-#     plt.figure(figsize=(50, 50))
-#     pos = nx.spring_layout(G)
-#     nx.draw_networkx_nodes(G, pos, node_color=color_map, node_size=10) #size_map)
-    
-#     for edge in G.edges():
-#         attributes = G.get_edge_data(edge[0],edge[1])
-#         nx.draw_networkx_edges(G, pos, connectionstyle='arc3, rad = 0.4',
-#             edgelist=[edge],
-#             width=attributes[next(iter(attributes))]["width"],
-#             alpha=attributes[next(iter(attributes))]["alpha"],
-#             edge_color=attributes[next(iter(attributes))]["color"])
-    
-#     # plt.rcParams['axes.facecolor'] = 'xkcd:salmon'
-#     plt.axis('off')
-#     plt.show() 
-#     i+=1
+# plt.figure(figsize=(50, 50))
+# pos = nx.spring_layout(G)
+# nx.draw_networkx(G, pos, connectionstyle='arc3, rad = 0.1', node_color=color_map, node_size=10, with_labels=False) #size_map) 
+# #maybe find a way to add the curves to lines https://stackoverflow.com/questions/15053686/networkx-overlapping-edges-when-visualizing-multigraph
+
+# plt.axis('off')
+# plt.show() 
 
 """community graph analysis (uncomment only when you want to run the algos)"""
 print("calculating betweenness...")
 
 """betweenness"""
-# Generate connected components and select the largest:
-largest_component = max(nx.connected_components(G), key=len)
-# Create a subgraph of G consisting only of this component:
-G2 = G.subgraph(largest_component)
-betweenness_c= nx.algorithms.centrality.betweenness_centrality_source(G2) #weight="value"
+# # Generate connected components and select the largest: (doesn't work for digraph)
+# largest_component = max(nx.connected_components(G), key=len)
+# # Create a subgraph of G consisting only of this component:
+# G2 = G.subgraph(largest_component)
+betweenness_c= nx.algorithms.centrality.betweenness_centrality_source(G, weight="weighted_edge")
 
 """putting into df"""
 eth_handle = dict(zip(full_addy.address,full_addy.username))
@@ -125,12 +143,12 @@ consolidated_score["betweenness"] = consolidated_score["source"].apply(lambda x:
 consolidated_score["betweenness"] = consolidated_score["betweenness"] - min(consolidated_score["betweenness"]) #must be base 0
 
 print("saved!")
-consolidated_score.to_csv(r'main_datasets\mirror_graph_score_ready.csv')
+consolidated_score.to_csv(r'main_datasets\mirror_graph_score_ready_weighted.csv')
 
-##make venn diag on how many people mentioned, voted, and contributed to each other overlap. This could deff be refactored hahaha
+"""venn diagram plot"""
 from matplotlib_venn import venn3
 import matplotlib.pyplot as plt
-consolidated_score = pd.read_csv(r'main_datasets\mirror_graph_score_ready.csv')
+consolidated_score = pd.read_csv(r'main_datasets\mirror_graph_score_ready_weighted.csv')
 
 total_voters = len(set(consolidated_score[consolidated_score["Votes"]!=0]["source"]))
 total_twitters = len(set(consolidated_score[consolidated_score["mentions"]!=0]["source"]))
