@@ -14,6 +14,7 @@ from sklearn import preprocessing
 start recon for calcuating rewards
 
 """
+
 consolidated_score = pd.read_csv(r'main_datasets\mirror_graph_score_ready_weighted.csv', index_col=0)
 
 """calculate created count (hopefully this can be replaced with Dune too after factory decoding)"""
@@ -25,30 +26,12 @@ ent = pd.read_csv(r'main_datasets\mirror_supplied\Entries_created.csv')
 ent.address = ent.address.apply(lambda x: x.lower())
 created_ent = dict(zip(ent.address,ent.num_entries))
 
-#check difference in unique addresses with dune method. missing may be because of crowdfund editions? but that's a double count? not sure what crowdfunds are missing.
-cf_test = all_creations[all_creations["product_type"]=="crowdfund"].pivot_table(index="creator",values="product_type",aggfunc="count") #missing two?
-ed_test = all_creations[all_creations["product_type"]=="editions"].pivot_table(index="creator",values="product_type",aggfunc="count") #missing 7?
+created_cf = all_creations[all_creations["product_type"]=="crowdfund"].pivot_table(index="creator",values="product_type",aggfunc="count") #extra 2 (seems right)
+created_cf = dict(zip(created_cf.index,created_cf.product_type))
 
-#manual data method
-cf = pd.read_csv(r'main_datasets\mirror_supplied\Crowdfunds.csv')
-cf["creator"] = cf["creator"].apply(lambda x: x.lower())
-created_cf = cf.pivot_table(index="creator",values="contract_address",aggfunc=lambda x: len(x.unique()))
-created_cf = dict(zip(created_cf.index,created_cf.contract_address))
+created_ed = all_creations[all_creations["product_type"]=="editions"].pivot_table(index="creator",values="product_type",aggfunc="count") #extra 2 (seems right)
+created_ed = dict(zip(created_ed.index,created_ed.product_type))
 
-ed = pd.read_csv(r'main_datasets\mirror_supplied\Editions.csv')
-ed["creator"] = ed["creator"].apply(lambda x: x.lower())
-created_ed = ed.pivot_table(index="creator",values="edition_name",aggfunc=lambda x: len(x.unique()))
-created_ed = dict(zip(created_ed.index,created_ed.edition_name))
-
-###TEMP reconciling. Editions decode missed 1 contract, and Crowdfund has 8 that were manual deploys (cries)###
-# ed_temp = created_ed.reset_index()
-# ed_missing_dune = ed_temp[~ed_temp["creator"].isin(list(set(ed_test.reset_index()["creator"])))]
-
-# cf_temp = created_cf.reset_index()
-# cf_missing_dune = cf_temp[~cf_temp["creator"].isin(list(set(cf_test.reset_index()["creator"])))]
-# cf_notmissing_dune = cf_temp[cf_temp["creator"].isin(list(set(cf_test.reset_index()["creator"])))]
-
-###these are fine
 created_au = all_creations[all_creations["product_type"]=="reserve_auctions"].pivot_table(index="creator",values="product_type",aggfunc="count") #extra 2 (seems right)
 created_au = dict(zip(created_au.index,created_au.product_type))
 
@@ -147,7 +130,7 @@ did_contribute = set(consolidated_score[(consolidated_score["CF_contribution"]!=
 consolidated_score["total_contributions"] = consolidated_score["CF_contribution"]+consolidated_score["ED_purchaseValue"]+consolidated_score["AU_value"]+consolidated_score["SP_value"]
 
 creator_reward = 1
-contributor_reward = 2
+contributor_reward = 3
 
 consolidated_score["did_contribute"] = consolidated_score["source"].apply(lambda x: contributor_reward if x in did_contribute else 0)
 consolidated_score["did_create"] = consolidated_score["created"].apply(lambda x: creator_reward if x > 0 else 0)

@@ -51,19 +51,8 @@ consolidated.index.names=["source","target"]
 
 #crowdfunds
 cf = graph_all[graph_all["product_type"]=="crowdfund"]
+cf.dropna(inplace=True)  #some cf didn't get any contributions
 
-#3 creators are missing from dune logs for some reason
-missing_cf_creator = {'\\x41ed7d49292b8fbf9b9311c1cb4d6eb877646c58':'0x48A63097E1Ac123b1f5A8bbfFafA4afa8192FaB0', 
-                    '\\xa338f6960d1e8bcde50a8057173229dcaa4428c9':'0xA0Cf798816D4b9b9866b5330EEa46a18382f251e',
-                    '\\x94515e4f6fabad73c8bcdd8cd42f0b5c037e2c49': '0xc3268ddb8e38302763ffdc9191fcebd4c948fe1b'}
-
-def fill_missing_cf_creators(x):
-    try:
-        return missing_cf_creator[x]
-    except:
-        return x
-
-cf["creator"] = cf["contract_address"].apply(lambda x: fill_missing_cf_creators(x)) 
 cf[["buyer","contract_address","creator"]]=cf[["buyer","contract_address","creator"]].applymap(lambda x: x.replace("\\","0"))
 cf_graph = cf.pivot_table(index=["buyer","creator"],values="contribution",aggfunc="sum")
 cf_graph.index.names=["source","target"]
