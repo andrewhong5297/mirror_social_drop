@@ -11,11 +11,11 @@ from tqdm import tqdm
 from sklearn import preprocessing
 
 print("starting preprocessing... remember to uncomment section if new voting graph")
-# df = pd.read_json(r'main_datasets\mirror_supplied\votingdata.json')
+# votesjson = pd.read_json(r'main_datasets\mirror_supplied\votingdata.json')
 
 # vote_graph = pd.DataFrame(columns=["Voter","Votes","Voted"])
 
-# for index, row in tqdm(df.iterrows()):
+# for index, row in tqdm(votesjson.iterrows()):
 #     for backer in row["backers"]:
 #         new_row = {"Voter":backer["username"],"Votes":backer["amount"],"Voted":row["username"]}
 #         vote_graph = vote_graph.append(new_row, ignore_index=True)
@@ -25,6 +25,7 @@ print("starting preprocessing... remember to uncomment section if new voting gra
 # vote_graph.to_csv(r'main_datasets/graph_data/voting_graph_full.csv')
 
 votes = pd.read_csv(r'main_datasets/graph_data/voting_graph_full.csv', index_col=0)
+
 votes = votes[votes["Votes"]!=0] #seems like some error in the json file
 #len(set(df["Voter"].append(df["Voted"]))) 2130 nodes total
 votes = votes[votes["Voter"]!=votes["Voted"]] #remove those who voted for self
@@ -44,16 +45,16 @@ add in ethereum transaction data to graph network and save file as consolidated
 """
 
 graph_all = pd.read_csv(r'main_datasets\dune_data\mirror_all_graph.csv')
-graph_all = graph_all[graph_all["contribution"]!=0] #filter this out from query later
+graph_all = graph_all[graph_all["contribution"]!=0] #filter this out from query 
+graph_all.dropna(inplace=True) #some cf didn't get any contributions
+graph_all[["buyer","contract_address","creator"]]=graph_all[["buyer","contract_address","creator"]].applymap(lambda x: x.replace("\\","0"))
 
 consolidated = votes.pivot_table(index=["Voter","Voted"], values="Votes", aggfunc="sum")
 consolidated.index.names=["source","target"]
 
 #crowdfunds
 cf = graph_all[graph_all["product_type"]=="crowdfund"]
-cf.dropna(inplace=True)  #some cf didn't get any contributions
 
-cf[["buyer","contract_address","creator"]]=cf[["buyer","contract_address","creator"]].applymap(lambda x: x.replace("\\","0"))
 cf_graph = cf.pivot_table(index=["buyer","creator"],values="contribution",aggfunc="sum")
 cf_graph.index.names=["source","target"]
 cf_graph.columns=["CF_contribution"]
@@ -75,7 +76,6 @@ sp_graph.to_csv(r'main_datasets/graph_data/splits_graph.csv')
 
 #auctions
 au = graph_all[graph_all["product_type"]=="reserve_auctions"]
-au[["buyer","creator"]]=au[["buyer","creator"]].applymap(lambda x: x.replace("\\","0"))
 au_graph = au.pivot_table(index=["buyer","creator"],values="contribution",aggfunc="sum")
 au_graph.index.names=["source","target"]
 au_graph.columns=["AU_value"]
@@ -117,6 +117,53 @@ consolidated = consolidated.join(au_graph,how="outer")
 twitter_graph = pd.read_csv(r'main_datasets/graph_data/twitter_graph.csv', index_col=["source","target"])
 
 consolidated = consolidated.join(twitter_graph,how="outer")
+
+"""add in votes percentage data"""
+votesjson = pd.read_json(r'main_datasets\mirror_supplied\votingdata.json')
+votes = pd.read_csv(r'main_datasets/graph_data/voting_graph_full.csv', index_col=0)
+votes_given = votes.pivot_table(index="Voter",values="Votes",aggfunc="sum") #for calculation later
+votes_given = votes_given.reset_index()
+
+votes_giversonly = votesjson[votesjson["username"].isin(set(votes_given["Voter"]))][["username","originalVotingPower"]]
+votes_giversonly.columns=["Voter","Votes_Allocated"]
+
+somehow_missing = set(votes_given["Voter"]) -set(votes_giversonly["Voter"]) 
+for missing in somehow_missing:
+    votes_given_by_missing = votes_given[votes_given["Voter"]==missing]["Votes"].reset_index(drop=True)[0]
+    #this is rough estimate, could be wrong.
+    votes_allocated = 10 if votes_given_by_missing <= 10 else round(votes_given_by_missing/10)*10
+    append_missing = {"Voter": missing, "Votes_Allocated": votes_allocated}
+    votes_giversonly = votes_giversonly.append(append_missing, ignore_index=True)
+    
+allocated = pd.read_excel(r'main_datasets/mirror_supplied/mirror_leaderboard.xlsx')
+allocated_dict = dict(zip(allocated.winner,allocated.allocation))
+
+def try_add_allocate(x):
+    try:
+        return allocated_dict[x]
+    except:
+        return 0 
+
+votes_giversonly["allocated_additional"] = votes_giversonly["Voter"].apply(lambda x: try_add_allocate(x))
+votes_giversonly["Votes_Allocated"] = votes_giversonly["Votes_Allocated"] + votes_giversonly["allocated_additional"]
+
+merged_votes = pd.merge(votes_given, votes_giversonly, how="left", on="Voter")
+
+#getting above 100%
+merged_votes["percentage_votes_used"] = merged_votes["Votes"].div(merged_votes["Votes_Allocated"])
+
+merged_votes["Voter"] = merged_votes["Voter"].apply(lambda x: handle_eth[x.lower()])
+percentage_allocated_dict = dict(zip(merged_votes.Voter,merged_votes.percentage_votes_used))
+
+def set_merge_percent_allocate(x):
+    try:
+        return percentage_allocated_dict[x]
+    except:
+        return 0
+
+consolidated.reset_index(inplace=True)
+consolidated["percentage_votes_used"] = consolidated.source.apply(lambda x: set_merge_percent_allocate(x))
+consolidated.set_index(["source","target"], inplace=True)
 
 """save down"""
 consolidated.to_csv(r'main_datasets/mirror_graph_processed.csv')

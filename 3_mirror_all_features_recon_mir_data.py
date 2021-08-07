@@ -137,7 +137,7 @@ consolidated_score["did_create"] = consolidated_score["created"].apply(lambda x:
 
 consolidated_score["actual_airdrop"] = (consolidated_score["betweenness"]+1)*\
                                             (\
-                                             consolidated_score["votes_before"].div(1000)\
+                                             consolidated_score["percentage_votes_used"]*consolidated_score["votes_before"].div(1000)\
                                             + consolidated_score["did_create"]\
                                             + (consolidated_score["did_contribute"]\
                                                *consolidated_score["total_contributions"]*consolidated_score["unique_contributed"]) \
