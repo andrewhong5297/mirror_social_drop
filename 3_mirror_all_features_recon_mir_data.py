@@ -129,17 +129,18 @@ did_contribute = set(consolidated_score[(consolidated_score["CF_contribution"]!=
                       | (consolidated_score["SP_value"]!=0) | (consolidated_score["AU_value"]!=0) | (consolidated_score["did_bid"]!=0)]["source"])
 consolidated_score["total_contributions"] = consolidated_score["CF_contribution"]+consolidated_score["ED_purchaseValue"]+consolidated_score["AU_value"]+consolidated_score["SP_value"]
 
-creator_reward = 1
-contributor_reward = 3
+creator_reward = 0.5
+contributor_reward = 0.1
 
 consolidated_score["did_contribute"] = consolidated_score["source"].apply(lambda x: contributor_reward if x in did_contribute else 0)
 consolidated_score["did_create"] = consolidated_score["created"].apply(lambda x: creator_reward if x > 0 else 0)
 
-consolidated_score["actual_airdrop"] = (100*consolidated_score["betweenness"]+1)*\
+consolidated_score["actual_airdrop"] = (consolidated_score["betweenness"]+1)*\
                                             (\
                                              consolidated_score["votes_before"].div(1000)\
                                             + consolidated_score["did_create"]\
-                                            + (consolidated_score["did_contribute"]*consolidated_score["total_contributions"]*consolidated_score["unique_contributed"]).div(10)\
+                                            + (consolidated_score["did_contribute"]\
+                                               *consolidated_score["total_contributions"]*consolidated_score["unique_contributed"]) \
                                             )
 
 """Finally, the total airdrop including currently held $WRITE tokens"""

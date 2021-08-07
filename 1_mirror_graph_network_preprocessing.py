@@ -10,8 +10,8 @@ import numpy as np
 from tqdm import tqdm
 from sklearn import preprocessing
 
-print("starting preprocessing...")
-# df = pd.read_json(r'main_datasets\votingdata.json')
+print("starting preprocessing... remember to uncomment section if new voting graph")
+# df = pd.read_json(r'main_datasets\mirror_supplied\votingdata.json')
 
 # vote_graph = pd.DataFrame(columns=["Voter","Votes","Voted"])
 

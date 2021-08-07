@@ -119,7 +119,7 @@ print("calculating betweenness...")
 # largest_component = max(nx.connected_components(G), key=len)
 # # Create a subgraph of G consisting only of this component:
 # G2 = G.subgraph(largest_component)
-betweenness_c= nx.algorithms.centrality.betweenness_centrality_source(G, weight="weighted_edge")
+betweenness_c= nx.algorithms.centrality.betweenness_centrality(G, weight="weighted_edge")
 
 """putting into df"""
 eth_handle = dict(zip(full_addy.address,full_addy.username))
@@ -145,27 +145,27 @@ consolidated_score["betweenness"] = consolidated_score["betweenness"] - min(cons
 print("saved!")
 consolidated_score.to_csv(r'main_datasets\mirror_graph_score_ready_weighted.csv')
 
-"""venn diagram plot"""
-from matplotlib_venn import venn3
-import matplotlib.pyplot as plt
-consolidated_score = pd.read_csv(r'main_datasets\mirror_graph_score_ready_weighted.csv')
+# """venn diagram plot"""
+# from matplotlib_venn import venn3
+# import matplotlib.pyplot as plt
+# consolidated_score = pd.read_csv(r'main_datasets\mirror_graph_score_ready_weighted.csv')
 
-total_voters = len(set(consolidated_score[consolidated_score["Votes"]!=0]["source"]))
-total_twitters = len(set(consolidated_score[consolidated_score["mentions"]!=0]["source"]))
-total_funders = len(set(consolidated_score[(consolidated_score["CF_contribution"]!=0) | (consolidated_score["ED_purchaseValue"]!=0) 
-                                  | (consolidated_score["SP_value"]!=0) | (consolidated_score["AU_value"]!=0)]["source"]))
+# total_voters = len(set(consolidated_score[consolidated_score["Votes"]!=0]["source"]))
+# total_twitters = len(set(consolidated_score[consolidated_score["mentions"]!=0]["source"]))
+# total_funders = len(set(consolidated_score[(consolidated_score["CF_contribution"]!=0) | (consolidated_score["ED_purchaseValue"]!=0) 
+#                                   | (consolidated_score["SP_value"]!=0) | (consolidated_score["AU_value"]!=0)]["source"]))
 
-total_voters_twitters = len(set(consolidated_score[(consolidated_score["Votes"]!=0) & (consolidated_score["mentions"]!=0)]["source"]))
+# total_voters_twitters = len(set(consolidated_score[(consolidated_score["Votes"]!=0) & (consolidated_score["mentions"]!=0)]["source"]))
 
-total_voters_funders = len(set(consolidated_score[(consolidated_score["Votes"]!=0) & ((consolidated_score["CF_contribution"]!=0) | (consolidated_score["ED_purchaseValue"]!=0 )
-                                  | (consolidated_score["SP_value"]!=0) | (consolidated_score)["AU_value"]!=0)]["source"]))
+# total_voters_funders = len(set(consolidated_score[(consolidated_score["Votes"]!=0) & ((consolidated_score["CF_contribution"]!=0) | (consolidated_score["ED_purchaseValue"]!=0 )
+#                                   | (consolidated_score["SP_value"]!=0) | (consolidated_score)["AU_value"]!=0)]["source"]))
 
-total_funders_twitters = len(set(consolidated_score[(consolidated_score["mentions"]!=0) & ((consolidated_score["CF_contribution"]!=0) | (consolidated_score["ED_purchaseValue"]!=0)
-                                  | (consolidated_score["SP_value"]!=0) | (consolidated_score["AU_value"]!=0))]["source"]))
+# total_funders_twitters = len(set(consolidated_score[(consolidated_score["mentions"]!=0) & ((consolidated_score["CF_contribution"]!=0) | (consolidated_score["ED_purchaseValue"]!=0)
+#                                   | (consolidated_score["SP_value"]!=0) | (consolidated_score["AU_value"]!=0))]["source"]))
 
-total_funders_twitters_voters =  len(set(consolidated_score[(consolidated_score["Votes"]!=0) & (consolidated_score["mentions"]!=0) & ((consolidated_score["CF_contribution"]!=0) | (consolidated_score["ED_purchaseValue"]!=0) 
-                                  | (consolidated_score["SP_value"]!=0) | (consolidated_score["AU_value"]!=0))]["source"]))
+# total_funders_twitters_voters =  len(set(consolidated_score[(consolidated_score["Votes"]!=0) & (consolidated_score["mentions"]!=0) & ((consolidated_score["CF_contribution"]!=0) | (consolidated_score["ED_purchaseValue"]!=0) 
+#                                   | (consolidated_score["SP_value"]!=0) | (consolidated_score["AU_value"]!=0))]["source"]))
 
-fig, ax = plt.subplots(figsize=(10,10))
-venn3(subsets = (total_voters, total_twitters, total_voters_twitters, total_funders, total_voters_funders, total_funders_twitters, total_funders_twitters_voters), 
-      set_labels = ('$WRITE Race', 'Twitter', 'Contributors (Ethereum Txs)'), set_colors=('r', 'g', 'b'), alpha = 0.5, ax =ax);
+# fig, ax = plt.subplots(figsize=(10,10))
+# venn3(subsets = (total_voters, total_twitters, total_voters_twitters, total_funders, total_voters_funders, total_funders_twitters, total_funders_twitters_voters), 
+#       set_labels = ('$WRITE Race', 'Twitter', 'Contributors (Ethereum Txs)'), set_colors=('r', 'g', 'b'), alpha = 0.5, ax =ax);
