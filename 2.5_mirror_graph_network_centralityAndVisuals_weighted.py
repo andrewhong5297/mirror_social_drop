@@ -17,11 +17,13 @@ votes = votes[votes["Votes"]!=0] #seems like some error in the json file
 #len(set(df["Voter"].append(df["Voted"]))) 2130 nodes total
 votes = votes[votes["Voter"]!=votes["Voted"]] #remove those who voted for self
 
-full_addy = pd.read_csv(r'main_datasets/mirror_supplied/mirror_tv.csv', index_col=0)
+full_addy = pd.read_csv(r'main_datasets/mirror_supplied/TwitterVerifications.csv', index_col=0)
 full_addy = full_addy.drop_duplicates(subset="username",keep="first") #this is REALLY important since some users have verified more than once, but the votes json file registers only their first signed address
-full_addy.address = full_addy.address.apply(lambda x: x.lower())
+full_addy.account = full_addy.account.apply(lambda x: x.lower())
 full_addy.username = full_addy.username.apply(lambda x: x.lower())
-handle_eth = dict(zip(full_addy.username,full_addy.address))
+handle_eth = dict(zip(full_addy.username,full_addy.account))
+eth_handle = dict(zip(full_addy.account,full_addy.username))
+
 votes[["Voter","Voted"]] = votes[["Voter","Voted"]].applymap(lambda x: handle_eth[x.lower()])
 
 """weighting edges into single graph"""
@@ -58,7 +60,7 @@ consolidated.fillna(0,inplace=True)
 
 #weighted edge multiples should add up to a maximum of 10
 #this might also need to be weighted by total... so normalized first? 
-consolidated["weighted_edge"]=30*consolidated["mentions2"] \
+consolidated["weighted_edge"]=20*consolidated["mentions2"] \
                                 + 30*consolidated["Votes2"] \
                                 + 10*consolidated["CF_contribution2"] \
                                 + 10*consolidated["ED_purchaseValue2"] \
@@ -77,7 +79,7 @@ print("plotting graph...")
 top_300_bw = {}
 
 #setting rules for color_map 
-winners = pd.read_json(r'main_datasets\mirror_supplied\votingdata.json')
+winners = pd.read_json(r'main_datasets\mirror_supplied\votes.json')
 winners = list(set(winners[winners.hasPublication==True]["username"]))
 winners_eth = [handle_eth[winner.lower()] for winner in winners]
 
@@ -122,7 +124,6 @@ print("calculating betweenness...")
 betweenness_c= nx.algorithms.centrality.betweenness_centrality(G, weight="weighted_edge")
 
 """putting into df"""
-eth_handle = dict(zip(full_addy.address,full_addy.username))
 def try_handle(x):
     try:
         return eth_handle[x]
@@ -134,13 +135,16 @@ def try_betweenness(x, betweenness):
         return betweenness[x]
     except:
         return betweenness[min(betweenness, key=betweenness.get)] #minimum value
-
+    
 consolidated_score = consolidated.reset_index().pivot_table(index=["source"],values=["Votes","CF_contribution","ED_purchaseValue","SP_value","AU_value","mentions"]
                                                             ,aggfunc="sum").reset_index()
 consolidated_score["twitter"] = consolidated_score["source"].apply(lambda x: try_handle(x))
 
 consolidated_score["betweenness"] = consolidated_score["source"].apply(lambda x: try_betweenness(x, betweenness_c))
 consolidated_score["betweenness"] = consolidated_score["betweenness"] - min(consolidated_score["betweenness"]) #must be base 0
+
+percentage_score_dict = dict(zip(consolidated["source"],consolidated["percentage_votes_used"]))
+consolidated_score["percentage_votes_used"] = consolidated_score["source"].apply(lambda x: percentage_score_dict[x])
 
 print("saved!")
 consolidated_score.to_csv(r'main_datasets\mirror_graph_score_ready_weighted.csv')

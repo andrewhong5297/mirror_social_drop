@@ -10,8 +10,8 @@ import numpy as np
 from tqdm import tqdm
 from sklearn import preprocessing
 
-print("starting preprocessing... remember to uncomment section if new voting graph")
-# votesjson = pd.read_json(r'main_datasets\mirror_supplied\votingdata.json')
+print("starting preprocessing... remember to uncomment section if new voting graph (refactor with timestamped votes next time")
+# votesjson = pd.read_json(r'main_datasets\mirror_supplied\votes.json')
 
 # vote_graph = pd.DataFrame(columns=["Voter","Votes","Voted"])
 
@@ -30,12 +30,14 @@ votes = votes[votes["Votes"]!=0] #seems like some error in the json file
 #len(set(df["Voter"].append(df["Voted"]))) 2130 nodes total
 votes = votes[votes["Voter"]!=votes["Voted"]] #remove those who voted for self
 
-full_addy = pd.read_csv(r'main_datasets/mirror_supplied/mirror_tv.csv', index_col=0)
+full_addy = pd.read_csv(r'main_datasets/mirror_supplied/TwitterVerifications.csv', index_col=0)
 # verified_num = full_addy.pivot_table(index="username", values="address", aggfunc="count")
 full_addy = full_addy.drop_duplicates(subset="username",keep="first") #this is REALLY important since some users have verified more than once, but the votes json file registers only their first signed address
-full_addy.address = full_addy.address.apply(lambda x: x.lower())
+full_addy.account = full_addy.account.apply(lambda x: x.lower())
 full_addy.username = full_addy.username.apply(lambda x: x.lower())
-handle_eth = dict(zip(full_addy.username,full_addy.address))
+handle_eth = dict(zip(full_addy.username,full_addy.account))
+eth_handle = dict(zip(full_addy.account,full_addy.username))
+
 votes[["Voter","Voted"]] = votes[["Voter","Voted"]].applymap(lambda x: handle_eth[x.lower()])
 
 """
@@ -91,12 +93,8 @@ consolidated = consolidated.join(au_graph,how="outer")
 # print("getting twitter graph...")
 # # #do we need to get the matrix of who has talked to who (co-occurence matrix)
 # # from scipy.sparse import csr_matrix
-# mdf = pd.read_csv(r'main_datasets\mirror_tw_mentionedby.csv', index_col=0)
+# mdf = pd.read_csv(r'main_datasets\mirror_tw_mentionedby_08122021.csv', index_col=0)
 # mdf.drop(columns="skipped_user", inplace=True)
-# mdf_2 = pd.read_csv(r'main_datasets\mirror_tw_mentionedby_all.csv', index_col=0)
-# mdf_2.drop(columns="skipped_user", inplace=True)
-
-# mdf = pd.concat([mdf,mdf_2])
 
 # twitter_cols = ["source","mentions","target"]
 # twitter_graph = pd.DataFrame(columns=twitter_cols)
@@ -118,46 +116,59 @@ twitter_graph = pd.read_csv(r'main_datasets/graph_data/twitter_graph.csv', index
 
 consolidated = consolidated.join(twitter_graph,how="outer")
 
-"""add in votes percentage data"""
-votesjson = pd.read_json(r'main_datasets\mirror_supplied\votingdata.json')
-votes = pd.read_csv(r'main_datasets/graph_data/voting_graph_full.csv', index_col=0)
-votes_given = votes.pivot_table(index="Voter",values="Votes",aggfunc="sum") #for calculation later
-votes_given = votes_given.reset_index()
+"""add in votes percentage used out of allocated. gets complex because allocated is available weekly"""
+votes_timestamped = pd.read_csv(r'main_datasets/mirror_supplied/InvitationVotes.csv')
+votes_timestamped = votes_timestamped.drop_duplicates(subset=["candidate","account","signature","round","amount"])
+votes_timestamped.rename(columns={"account":"Voter", "amount":"Votes"}, inplace=True)
+votes_timestamped["Voter"] = votes_timestamped["Voter"].apply(lambda x: x.lower())
+# votes_given_ts = votes_timestamped.pivot_table(index=["account","candidate"],values="amount",aggfunc="sum") #refactor code with this above later for voter_graph later
+votes_given = votes_timestamped.pivot_table(index="Voter",values="Votes",aggfunc="sum")
+votes_given.reset_index(inplace=True)
+votes_given["Votes_Allocated"] = 10 #everyone starts with 10 votes, then we add on allocation from leaderboard and also from votes_timestamped
 
-votes_giversonly = votesjson[votesjson["username"].isin(set(votes_given["Voter"]))][["username","originalVotingPower"]]
-votes_giversonly.columns=["Voter","Votes_Allocated"]
+#need to add allocated_weekly
+votes_weekly = votes_timestamped.pivot_table(index="Voter",columns="round", values="Votes", aggfunc="sum")
+votes_weekly[~votes_weekly.isnull()] = 10
+votes_weekly.fillna(0,inplace=True)
+votes_weekly = votes_weekly.cumsum(axis=1)
 
-somehow_missing = set(votes_given["Voter"]) -set(votes_giversonly["Voter"]) 
-for missing in somehow_missing:
-    votes_given_by_missing = votes_given[votes_given["Voter"]==missing]["Votes"].reset_index(drop=True)[0]
-    #this is rough estimate, could be wrong.
-    votes_allocated = 10 if votes_given_by_missing <= 10 else round(votes_given_by_missing/10)*10
-    append_missing = {"Voter": missing, "Votes_Allocated": votes_allocated}
-    votes_giversonly = votes_giversonly.append(append_missing, ignore_index=True)
-    
-allocated = pd.read_excel(r'main_datasets/mirror_supplied/mirror_leaderboard.xlsx')
+votes_weekly["total_votes_allocated"] = votes_weekly.sum(axis=1)
+
+votes_given = pd.merge(votes_given,votes_weekly.reset_index()[["Voter","total_votes_allocated"]],on="Voter",how="left")
+
+#add on winners allocation weekly
+allocated = pd.read_excel(r'main_datasets/mirror_supplied/mirror_leaderboard.xlsx') #this is a manual input spreadsheet
+allocated["winner"] = allocated["winner"].apply(lambda x: handle_eth[x.lower()])
 allocated_dict = dict(zip(allocated.winner,allocated.allocation))
 
 def try_add_allocate(x):
     try:
         return allocated_dict[x]
     except:
+        if x == "0x4c0a466df0628fe8699051b3ac6506653191cc21":
+            return 22000 #manual for duplicate trent_vanepps?
         return 0 
 
-votes_giversonly["allocated_additional"] = votes_giversonly["Voter"].apply(lambda x: try_add_allocate(x))
-votes_giversonly["Votes_Allocated"] = votes_giversonly["Votes_Allocated"] + votes_giversonly["allocated_additional"]
+votes_given["allocated_additional_winners"] = votes_given["Voter"].apply(lambda x: try_add_allocate(x))
 
-merged_votes = pd.merge(votes_given, votes_giversonly, how="left", on="Voter")
+#sum up all additional votes
+votes_given["Votes_Allocated"] = votes_given["Votes_Allocated"] + votes_given["allocated_additional_winners"] + votes_given["total_votes_allocated"]
 
-#getting above 100%
-merged_votes["percentage_votes_used"] = merged_votes["Votes"].div(merged_votes["Votes_Allocated"])
+#take percentage of votes/votes_allocated
+votes_given["percentage_votes_used"] = votes_given["Votes"].div(votes_given["Votes_Allocated"])
 
-merged_votes["Voter"] = merged_votes["Voter"].apply(lambda x: handle_eth[x.lower()])
-percentage_allocated_dict = dict(zip(merged_votes.Voter,merged_votes.percentage_votes_used))
+percentage_allocated_dict = dict(zip(votes_given.Voter,votes_given.percentage_votes_used))
 
+#assign percentages back to consolidated. Could have done a join then fillna with 0 I guess, but this is pretty fast. 
 def set_merge_percent_allocate(x):
     try:
-        return percentage_allocated_dict[x]
+        percentage = percentage_allocated_dict[x] 
+        if percentage > 1.5:
+            return 0 #there are some bots that were removed
+        if percentage > 1:
+            return 1 #there are maybe 20 votes missed for a few people in early rounds
+        else:
+            return percentage
     except:
         return 0
 

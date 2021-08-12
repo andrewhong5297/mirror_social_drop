@@ -13,11 +13,8 @@ from datetime import datetime
 from tqdm import tqdm
 
 #refactor this later for if more usernames are added
-all_users = pd.read_json(r'main_datasets\mirror_supplied\votingdata.json')
-active_users = pd.read_csv(r'main_datasets\graph_data\voting_graph_full.csv', index_col=0)
-users_already_scraped = list(set(active_users["Voter"].append(active_users["Voted"])))
-users_to_scrape = set(all_users["username"]) - set(active_users["Voter"].append(active_users["Voted"]))
-users = list(users_to_scrape)
+all_users = pd.read_json(r'main_datasets\mirror_supplied\votes.json')
+users = list(set(all_users["username"]))
 
 ###setting up twitter api
 consumer_key = "YqBOnr9To6U1ItTMWr5emdGjE" #dKJE1GlWlnXXdoEh9X706PifF
@@ -29,10 +26,10 @@ auth.set_access_token(access_token, access_token_secret)
 api = tweepy.API(auth,wait_on_rate_limit=True)
 
 #mentions by a user
-mdf = pd.read_csv(r'main_datasets\mirror_tw_mentionedby_all.csv', index_col=0)
+mdf = pd.read_csv(r'main_datasets\mirror_tw_mentionedby_08122021.csv', index_col=0)
 mentioned_by = mdf.to_dict(orient="list")
-# mentioned_by = {}
-for user in tqdm(users[len(mentioned_by):]):
+mentioned_by = {}
+for user in tqdm(users):
     # print(user, datetime.now())
     if user in mentioned_by:
         pass
@@ -54,7 +51,7 @@ for user in tqdm(users[len(mentioned_by):]):
                 mentioned_by["skipped_user"] = current_skips
         mdf = pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in mentioned_by.items() ]))
         #SAVE AS CSV AS YOU GO
-        mdf.to_csv(r'main_datasets\mirror_tw_mentionedby_all.csv')
+        mdf.to_csv(r'main_datasets\mirror_tw_mentionedby_08122021.csv')
 
 ### below all take too long
 # # favorites for a given user

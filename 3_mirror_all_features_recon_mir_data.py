@@ -87,7 +87,7 @@ min_max_scaler = preprocessing.MinMaxScaler()
 consolidated_score["unique_contributed"] = min_max_scaler.fit_transform(consolidated_score[["unique_contributed"]]) #normalized
 
 """add in existing votes and other voters"""
-votes_df = pd.read_json(r'main_datasets\mirror_supplied\votingdata.json')
+votes_df = pd.read_json(r'main_datasets\mirror_supplied\votes.json')
 votes_before_dict = dict(zip(votes_df["account"].apply(lambda x: x.lower()),votes_df.originalVotingPower))
 
 def assign_old_votes(x):
@@ -118,6 +118,8 @@ def did_bid(x):
 consolidated_score["did_bid"] = consolidated_score["source"].apply(lambda x: did_bid(x))
 
 """rewards simulations"""
+print("calculating score...")
+
 consolidated_score.fillna(0,inplace=True)
 
 #these filters are still in here cause of splits being from Graeme rather than dune
@@ -143,16 +145,20 @@ consolidated_score["actual_airdrop"] = (consolidated_score["betweenness"]+1)*\
                                                *consolidated_score["total_contributions"]*consolidated_score["unique_contributed"]) \
                                             )
 
-"""Finally, the total airdrop including currently held $WRITE tokens"""
-import matplotlib.pyplot as plt
-import seaborn as sns
-import plotly.express as px
-from plotly.offline import plot
+print("Total tokens distributed: {}".format(sum(consolidated_score["actual_airdrop"])))
+consolidated_score.to_csv(r'main_datasets\mirror_baseAirdrop_w.csv')
+consolidated_score.drop(columns="twitter").to_csv(r'main_datasets\mirror_finalAirdrop_cleaned_w.csv')
 
-consolidated_score["betweenness_level"] = ["high" if betweenness > 0.05 else "low" for betweenness in consolidated_score["betweenness"]]
-address_betweenness = dict(zip(consolidated_score.source, consolidated_score.betweenness_level))
+###outdated spread analysis
+# import matplotlib.pyplot as plt
+# import seaborn as sns
+# import plotly.express as px
+# from plotly.offline import plot
 
-def check_distribution(df):
+# consolidated_score["betweenness_level"] = ["high" if betweenness > 0.05 else "low" for betweenness in consolidated_score["betweenness"]]
+# address_betweenness = dict(zip(consolidated_score.source, consolidated_score.betweenness_level))
+
+# def check_distribution(df):
     # for_boxplot = df[["source","actual_airdrop","twitter"]]
     # for_boxplot.set_index("source",inplace=True)
     # for_boxplot.reset_index(inplace=True)
@@ -170,11 +176,5 @@ def check_distribution(df):
     #                 data=for_boxplot, ax=ax)
     # sns.despine(offset=10, trim=True)
     # ax.set(title="Airdrop Allocation (Logarithmic)")
-    print("Total tokens distributed: {}".format(sum(consolidated_score["actual_airdrop"])))
 
-check_distribution(consolidated_score)
-
-consolidated_score.to_csv(r'main_datasets\mirror_baseAirdrop_w.csv')
-#maybe this should go into a datapane
-consolidated_score.drop(columns="twitter").to_csv(r'main_datasets\mirror_finalAirdrop_cleaned_w.csv')
-
+# check_distribution(consolidated_score)
