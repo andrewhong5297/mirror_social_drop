@@ -60,12 +60,12 @@ consolidated.fillna(0,inplace=True)
 
 #weighted edge multiples should add up to a maximum of 10
 #this might also need to be weighted by total... so normalized first? 
-consolidated["weighted_edge"]=20*consolidated["mentions2"] \
-                                + 30*consolidated["Votes2"] \
-                                + 10*consolidated["CF_contribution2"] \
-                                + 10*consolidated["ED_purchaseValue2"] \
-                                + 10*consolidated["SP_value2"] \
-                                + 10*consolidated["AU_value2"]
+consolidated["weighted_edge"]=15*consolidated["mentions2"] \
+                                + 40*consolidated["Votes2"] \
+                                + 20*consolidated["CF_contribution2"] \
+                                + 20*consolidated["ED_purchaseValue2"] \
+                                + 20*consolidated["SP_value2"] \
+                                + 20*consolidated["AU_value2"]
 
 consolidated = consolidated[~consolidated.eq(0).all(1)] 
 consolidated = consolidated.drop(columns=["CF_total","ED_total","SP_total","AU_total","total_votes","total_mentions"])
@@ -143,7 +143,7 @@ consolidated_score["twitter"] = consolidated_score["source"].apply(lambda x: try
 consolidated_score["betweenness"] = consolidated_score["source"].apply(lambda x: try_betweenness(x, betweenness_c))
 consolidated_score["betweenness"] = consolidated_score["betweenness"] - min(consolidated_score["betweenness"]) #must be base 0
 
-percentage_score_dict = dict(zip(consolidated["source"],consolidated["percentage_votes_used"]))
+percentage_score_dict = dict(zip(consolidated.reset_index()["source"],consolidated["percentage_votes_used"]))
 consolidated_score["percentage_votes_used"] = consolidated_score["source"].apply(lambda x: percentage_score_dict[x])
 
 print("saved!")

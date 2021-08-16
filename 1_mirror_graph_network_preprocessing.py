@@ -10,7 +10,9 @@ import numpy as np
 from tqdm import tqdm
 from sklearn import preprocessing
 
-print("starting preprocessing... remember to uncomment section if new voting graph (refactor with timestamped votes next time")
+print("starting preprocessing... remember to uncomment section if new voting graph")
+
+###we could use timestamped votes for this, but there are some missing twitter verifs to account for. votes.json is a cleaner file.
 # votesjson = pd.read_json(r'main_datasets\mirror_supplied\votes.json')
 
 # vote_graph = pd.DataFrame(columns=["Voter","Votes","Voted"])
@@ -20,18 +22,17 @@ print("starting preprocessing... remember to uncomment section if new voting gra
 #         new_row = {"Voter":backer["username"],"Votes":backer["amount"],"Voted":row["username"]}
 #         vote_graph = vote_graph.append(new_row, ignore_index=True)
         
-# len(set(vote_graph["Voter"])) #only 2041 out of 7000 handle have voted?
+# len(set(vote_graph["Voter"])) 
 
 # vote_graph.to_csv(r'main_datasets/graph_data/voting_graph_full.csv')
 
 votes = pd.read_csv(r'main_datasets/graph_data/voting_graph_full.csv', index_col=0)
 
 votes = votes[votes["Votes"]!=0] #seems like some error in the json file
-#len(set(df["Voter"].append(df["Voted"]))) 2130 nodes total
+#len(set(df["Voter"].append(df["Voted"])))
 votes = votes[votes["Voter"]!=votes["Voted"]] #remove those who voted for self
 
 full_addy = pd.read_csv(r'main_datasets/mirror_supplied/TwitterVerifications.csv', index_col=0)
-# verified_num = full_addy.pivot_table(index="username", values="address", aggfunc="count")
 full_addy = full_addy.drop_duplicates(subset="username",keep="first") #this is REALLY important since some users have verified more than once, but the votes json file registers only their first signed address
 full_addy.account = full_addy.account.apply(lambda x: x.lower())
 full_addy.username = full_addy.username.apply(lambda x: x.lower())
@@ -89,11 +90,15 @@ consolidated = consolidated.join(ed_graph,how="outer")
 consolidated = consolidated.join(sp_graph,how="outer")
 consolidated = consolidated.join(au_graph,how="outer")
 
-"""add in twitter data, this runs slowly lol. this should work with every single user"""
-# print("getting twitter graph...")
+"""
+
+add in twitter data, this runs slowly lol. this should work with every single user
+
+"""
+print("getting twitter graph...")
 # # #do we need to get the matrix of who has talked to who (co-occurence matrix)
 # # from scipy.sparse import csr_matrix
-# mdf = pd.read_csv(r'main_datasets\mirror_tw_mentionedby_08122021.csv', index_col=0)
+# mdf = pd.read_csv(r'main_datasets\mirror_tw_mentionedby_08122021_full.csv', index_col=0)
 # mdf.drop(columns="skipped_user", inplace=True)
 
 # twitter_cols = ["source","mentions","target"]
@@ -110,28 +115,32 @@ consolidated = consolidated.join(au_graph,how="outer")
 #                 twitter_graph = twitter_graph.append(new_mention, ignore_index=True)
             
 # twitter_graph = twitter_graph.pivot_table(index=["source","target"],values="mentions", aggfunc="sum")
-# twitter_graph.to_csv(r'main_datasets/graph_data/twitter_graph.csv')
+# twitter_graph.to_csv(r'main_datasets/graph_data/twitter_graph_final.csv')
 
-twitter_graph = pd.read_csv(r'main_datasets/graph_data/twitter_graph.csv', index_col=["source","target"])
+twitter_graph = pd.read_csv(r'main_datasets/graph_data/twitter_graph_final.csv', index_col=["source","target"])
 
 consolidated = consolidated.join(twitter_graph,how="outer")
 
-"""add in votes percentage used out of allocated. gets complex because allocated is available weekly"""
+"""
+
+add in votes percentage used out of allocated. gets complex because allocated is available weekly
+
+"""
 votes_timestamped = pd.read_csv(r'main_datasets/mirror_supplied/InvitationVotes.csv')
 votes_timestamped = votes_timestamped.drop_duplicates(subset=["candidate","account","signature","round","amount"])
-votes_timestamped.rename(columns={"account":"Voter", "amount":"Votes"}, inplace=True)
+votes_timestamped.rename(columns={"account":"Voter", "amount":"Votes", "candidate":"Voted"}, inplace=True)
+
 votes_timestamped["Voter"] = votes_timestamped["Voter"].apply(lambda x: x.lower())
 # votes_given_ts = votes_timestamped.pivot_table(index=["account","candidate"],values="amount",aggfunc="sum") #refactor code with this above later for voter_graph later
 votes_given = votes_timestamped.pivot_table(index="Voter",values="Votes",aggfunc="sum")
 votes_given.reset_index(inplace=True)
 votes_given["Votes_Allocated"] = 10 #everyone starts with 10 votes, then we add on allocation from leaderboard and also from votes_timestamped
 
-#need to add allocated_weekly
+#add new votes allocated_weekly
 votes_weekly = votes_timestamped.pivot_table(index="Voter",columns="round", values="Votes", aggfunc="sum")
 votes_weekly[~votes_weekly.isnull()] = 10
 votes_weekly.fillna(0,inplace=True)
 votes_weekly = votes_weekly.cumsum(axis=1)
-
 votes_weekly["total_votes_allocated"] = votes_weekly.sum(axis=1)
 
 votes_given = pd.merge(votes_given,votes_weekly.reset_index()[["Voter","total_votes_allocated"]],on="Voter",how="left")
@@ -146,7 +155,7 @@ def try_add_allocate(x):
         return allocated_dict[x]
     except:
         if x == "0x4c0a466df0628fe8699051b3ac6506653191cc21":
-            return 22000 #manual for duplicate trent_vanepps?
+            return 22000 #manual for duplicate, probably lost on merge anyways.
         return 0 
 
 votes_given["allocated_additional_winners"] = votes_given["Voter"].apply(lambda x: try_add_allocate(x))
@@ -166,7 +175,7 @@ def set_merge_percent_allocate(x):
         if percentage > 1.5:
             return 0 #there are some bots that were removed
         if percentage > 1:
-            return 1 #there are maybe 20 votes missed for a few people in early rounds
+            return 1 #there are maybe 10-20 votes missed for a few people in early rounds
         else:
             return percentage
     except:
@@ -176,5 +185,9 @@ consolidated.reset_index(inplace=True)
 consolidated["percentage_votes_used"] = consolidated.source.apply(lambda x: set_merge_percent_allocate(x))
 consolidated.set_index(["source","target"], inplace=True)
 
-"""save down"""
+"""
+
+save down
+
+"""
 consolidated.to_csv(r'main_datasets/mirror_graph_processed.csv')

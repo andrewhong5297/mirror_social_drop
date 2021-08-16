@@ -17,19 +17,41 @@ all_users = pd.read_json(r'main_datasets\mirror_supplied\votes.json')
 users = list(set(all_users["username"]))
 
 ###setting up twitter api
-consumer_key = "YqBOnr9To6U1ItTMWr5emdGjE" #dKJE1GlWlnXXdoEh9X706PifF
-consumer_secret = "DMcdKA9hAP5il1blT2sKZMowBYG5uiKvOxihZKeB7Xw2uzQQLk" #26qyIASFEQnUENgseZHLkczNW6aZgSrOZ7UhnDoY9R8Nn0kTJ9
-access_token = "801246156340740096-eNUEV9IyTsPE0aPuwGpG52S9gVjAzzI"
-access_token_secret = "sdq7i2lqRCAEiEYyoX32enxgGtUgJZLmkr02et541YbkF"
+consumer_key ="3EKL6CHHdbs8Su04Fwr3Ja4He"
+consumer_secret = "epTy2J7hsgZ2rqDypDfC2Eudz9le3sL4N3xr2Oc4aT8WXxAkmv"
+access_token = "801246156340740096-gBQRqQvzWrMdob8bK8YlJIKzRrQ1uHX"
+access_token_secret = "nd2ImDF79d4Rd81r87VMBeBi1RPmwfGBNKYyyAzIwXXla" 
+
+# consumer_key ="YqBOnr9To6U1ItTMWr5emdGjE" 
+# consumer_secret = "DMcdKA9hAP5il1blT2sKZMowBYG5uiKvOxihZKeB7Xw2uzQQLk" 
+# access_token = "801246156340740096-eNUEV9IyTsPE0aPuwGpG52S9gVjAzzI"
+# access_token_secret = "sdq7i2lqRCAEiEYyoX32enxgGtUgJZLmkr02et541YbkF"
+
 auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
 auth.set_access_token(access_token, access_token_secret)
 api = tweepy.API(auth,wait_on_rate_limit=True)
 
+###fixing multi-key mistake
+# mdf = pd.read_csv(r'main_datasets\mirror_tw_mentionedby_08122021_full.csv', index_col=0)
+# mdf_2 = pd.read_csv(r'main_datasets\mirror_tw_mentionedby_08122021_full_2.csv', index_col=0)
+
+# mdf = pd.concat([mdf,mdf_2],axis=1)
+# mdf = mdf.loc[:,~mdf.columns.duplicated()]
+# mdf.to_csv(r'main_datasets\mirror_tw_mentionedby_08122021_full.csv')
+
 #mentions by a user
-mdf = pd.read_csv(r'main_datasets\mirror_tw_mentionedby_08122021.csv', index_col=0)
+mdf = pd.read_csv(r'main_datasets\mirror_tw_mentionedby_08122021_full.csv', index_col=0)
 mentioned_by = mdf.to_dict(orient="list")
-mentioned_by = {}
-for user in tqdm(users):
+
+# users_left = list(set(users)-set(mdf.columns)) #it's possible that many of these are private/skipped_users
+# pd.Series(users_left)[:int(len(list(users_left))/2)].to_csv(r'main_datasets\mirror_tw_mentionedby_users1.csv')
+# pd.Series(users_left)[int(len(list(users_left))/2)-1:].to_csv(r'main_datasets\mirror_tw_mentionedby_users2.csv')
+
+users_left_1 = pd.read_csv(r'main_datasets\mirror_tw_mentionedby_users1.csv', index_col=0)
+users_left_2 = pd.read_csv(r'main_datasets\mirror_tw_mentionedby_users2.csv', index_col=0)
+
+# mentioned_by = {}
+for user in tqdm(users_left_1["0"]):
     # print(user, datetime.now())
     if user in mentioned_by:
         pass
@@ -51,7 +73,7 @@ for user in tqdm(users):
                 mentioned_by["skipped_user"] = current_skips
         mdf = pd.DataFrame(dict([ (k,pd.Series(v)) for k,v in mentioned_by.items() ]))
         #SAVE AS CSV AS YOU GO
-        mdf.to_csv(r'main_datasets\mirror_tw_mentionedby_08122021.csv')
+        mdf.to_csv(r'main_datasets\mirror_tw_mentionedby_08122021_full.csv')
 
 ### below all take too long
 # # favorites for a given user

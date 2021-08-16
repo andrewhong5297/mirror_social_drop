@@ -98,7 +98,7 @@ def assign_old_votes(x):
     
 consolidated_score["votes_before"] = consolidated_score["source"].apply(lambda x: assign_old_votes(x))
 
-#this runs pretty slow rn lol
+#this runs pretty slow rn lol, adding in voters who didn't do anything else.
 votes_df["account"] = votes_df["account"].apply(lambda x: x.lower())
 votes_df = votes_df[~votes_df["account"].isin(consolidated_score["source"])]
 for index, row in votes_df.iterrows():
@@ -131,13 +131,13 @@ did_contribute = set(consolidated_score[(consolidated_score["CF_contribution"]!=
                       | (consolidated_score["SP_value"]!=0) | (consolidated_score["AU_value"]!=0) | (consolidated_score["did_bid"]!=0)]["source"])
 consolidated_score["total_contributions"] = consolidated_score["CF_contribution"]+consolidated_score["ED_purchaseValue"]+consolidated_score["AU_value"]+consolidated_score["SP_value"]
 
-creator_reward = 0.5
-contributor_reward = 0.1
+creator_reward = 0.65
+contributor_reward = 0.15
 
 consolidated_score["did_contribute"] = consolidated_score["source"].apply(lambda x: contributor_reward if x in did_contribute else 0)
 consolidated_score["did_create"] = consolidated_score["created"].apply(lambda x: creator_reward if x > 0 else 0)
 
-consolidated_score["actual_airdrop"] = (consolidated_score["betweenness"]+1)*\
+consolidated_score["actual_airdrop"] = (50*consolidated_score["betweenness"]+1)*\
                                             (\
                                              consolidated_score["percentage_votes_used"]*consolidated_score["votes_before"].div(1000)\
                                             + consolidated_score["did_create"]\
@@ -146,8 +146,16 @@ consolidated_score["actual_airdrop"] = (consolidated_score["betweenness"]+1)*\
                                             )
 
 print("Total tokens distributed: {}".format(sum(consolidated_score["actual_airdrop"])))
+print("Total receievers of > 1 token: {}".format(len(consolidated_score[consolidated_score["actual_airdrop"]>=1])))
+print("Max tokens received: {}".format(max(consolidated_score["actual_airdrop"])))
+
 consolidated_score.to_csv(r'main_datasets\mirror_baseAirdrop_w.csv')
 consolidated_score.drop(columns="twitter").to_csv(r'main_datasets\mirror_finalAirdrop_cleaned_w.csv')
+
+# import matplotlib.pyplot as plt
+# consolidated_score = pd.read_csv(r'main_datasets\mirror_finalAirdrop_cleaned_w.csv')
+# fig, ax = plt.subplots(figsize=(10,10))
+# consolidated_score[consolidated_score["actual_airdrop"]!=0]["actual_airdrop"].hist(bins=100, ax=ax)
 
 ###outdated spread analysis
 # import matplotlib.pyplot as plt
